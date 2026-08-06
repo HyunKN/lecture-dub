@@ -7,7 +7,6 @@ import tempfile
 import wave
 from pathlib import Path
 
-
 from .subtitles import Cue
 
 SAMPLE_RATE = 24_000
@@ -57,6 +56,26 @@ def atempo_chain(speed: float) -> str:
         speed /= 0.5
     factors.append(speed)
     return ",".join(f"atempo={factor:.6f}" for factor in factors)
+
+
+def format_progress(stage: str, current: int, total: int, width: int = 30) -> str:
+    """Return a single-line progress bar suitable for a terminal."""
+    if total <= 0:
+        raise ValueError("total must be positive")
+    if width <= 0:
+        raise ValueError("width must be positive")
+
+    safe_current = min(max(current, 0), total)
+    ratio = safe_current / total
+    filled = int(width * ratio)
+    bar = "#" * filled + "-" * (width - filled)
+    return f"{stage} [{bar}] {safe_current}/{total} ({ratio * 100:.1f}%)"
+
+
+def report_progress(stage: str, current: int, total: int) -> None:
+    """Update one terminal line, then finish it when the stage reaches 100%."""
+    end = "\n" if current >= total else "\r"
+    print(f"\r{format_progress(stage, current, total)}", end=end, flush=True)
 
 
 async def generate_tts(text: str, output: Path, voice: str, rate: str) -> None:
@@ -119,21 +138,27 @@ async def synthesize_timeline(
     keep_segments: bool = False,
 ) -> None:
     require_ffmpeg()
+    if not cues:
+        raise ValueError("At least one subtitle cue is required")
+
     output.parent.mkdir(parents=True, exist_ok=True)
 
     temporary_parent = output.parent if keep_segments else None
     with tempfile.TemporaryDirectory(prefix="lecture-dub-", dir=temporary_parent) as temp_name:
         temp_dir = Path(temp_name)
         prepared: list[tuple[Cue, Path, float]] = []
+        total = len(cues)
 
+        report_progress("TTS 생성", 0, total)
         for index, cue in enumerate(cues):
-            next_start = cues[index + 1].start if index + 1 < len(cues) else cue.end
+            next_start = cues[index + 1].start if index + 1 < total else cue.end
             slot = max(0.15, next_start - cue.start)
             mp3_path = temp_dir / f"{index:05d}.mp3"
             wav_path = temp_dir / f"{index:05d}.wav"
             await generate_tts(cue.text, mp3_path, voice=voice, rate=rate)
             duration = convert_to_timeline_wav(mp3_path, wav_path, max_duration=slot)
             prepared.append((cue, wav_path, duration))
+            report_progress("TTS 생성", index + 1, total)
 
         with wave.open(str(output), "wb") as target:
             target.setnchannels(CHANNELS)
@@ -141,12 +166,14 @@ async def synthesize_timeline(
             target.setframerate(SAMPLE_RATE)
 
             cursor = 0.0
-            for cue, wav_path, _duration in prepared:
+            report_progress("WAV 조립", 0, total)
+            for index, (cue, wav_path, _duration) in enumerate(prepared):
                 if cue.start > cursor:
                     write_silence(target, cue.start - cursor)
                     cursor = cue.start
                 written = append_wav(target, wav_path)
                 cursor += written
+                report_progress("WAV 조립", index + 1, total)
 
             target.writeframes(b"")
 
