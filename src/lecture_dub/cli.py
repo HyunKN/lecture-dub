@@ -26,14 +26,14 @@ def build_parser() -> argparse.ArgumentParser:
         "extract", help="Download English subtitles only (no video)."
     )
     extract_parser.add_argument("url")
-    extract_parser.add_argument("--output-dir", type=Path, default=Path("output"))
+    extract_parser.add_argument("--output-dir", type=Path, default=Path("output/en"))
     extract_parser.add_argument("--language", default="en.*")
 
     synth_parser = subparsers.add_parser(
         "synthesize", help="Create a Korean WAV from a translated VTT file."
     )
     synth_parser.add_argument("vtt", type=Path)
-    synth_parser.add_argument("--output", type=Path, default=Path("output/korean_dub.wav"))
+    synth_parser.add_argument("--output", type=Path, default=Path("output/ko/korean_dub.wav"))
     synth_parser.add_argument("--voice", default=DEFAULT_VOICE)
     synth_parser.add_argument("--rate", default="+5%")
     synth_parser.add_argument("--keep-segments", action="store_true")

@@ -66,11 +66,15 @@ pip install -e ".[dev]"
 lecture-dub extract "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-결과는 기본적으로 `output/`에 저장됩니다.
+결과는 기본적으로 `output/en/`에 저장됩니다.
 
 ```text
 output/
-└─ 강의 제목 [VIDEO_ID].en.vtt
+├─ en/
+│  └─ 강의 제목 [VIDEO_ID].en.vtt
+└─ ko/
+   ├─ lecture.ko.vtt
+   └─ korean_dub.wav
 ```
 
 영상에 자막이 없거나 YouTube 측 요청 제한이 발생하면 추출이 실패할 수 있습니다.
@@ -90,25 +94,25 @@ output/
 - 결과를 UTF-8 WebVTT 파일로 제공
 ```
 
-번역 결과를 예를 들어 `output/lecture.ko.vtt`로 저장합니다.
+번역 결과를 예를 들어 `output/ko/lecture.ko.vtt`로 저장합니다.
 
 ## 3. 한국어 더빙 WAV 생성
 
 ```powershell
-lecture-dub synthesize output\lecture.ko.vtt
+lecture-dub synthesize output\ko\lecture.ko.vtt
 ```
 
 기본 결과:
 
 ```text
-output/korean_dub.wav
+output/ko/korean_dub.wav
 ```
 
 음성과 속도를 바꿀 수도 있습니다.
 
 ```powershell
-lecture-dub synthesize output\lecture.ko.vtt `
-  --output output\cs231n-lecture01.ko.wav `
+lecture-dub synthesize output\ko\lecture.ko.vtt `
+  --output output\ko\cs231n-lecture01.ko.wav `
   --voice ko-KR-SunHiNeural `
   --rate "+8%"
 ```
@@ -154,7 +158,7 @@ http://localhost:8000/web/
 로컬 영상 파일과 WAV만 함께 들으려면 mpv도 사용할 수 있습니다.
 
 ```powershell
-mpv lecture.mp4 --audio-file=output\korean_dub.wav
+mpv lecture.mp4 --audio-file=output\ko\korean_dub.wav
 ```
 
 ## 개발 및 테스트
