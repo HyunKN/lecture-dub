@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lecture Dub Player</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Lecture Dub Player</h1>
+      <p>YouTube 영상에 한국어 WAV와 영어·한국어 자막을 맞춰 재생합니다.</p>
+    </header>
+
+    <section class="panel">
+      <div class="url-row">
+        <input id="youtube-url" type="url" value="https://www.youtube.com/watch?v=_NLHFoVNlbg" aria-label="YouTube URL">
+        <button id="load-video" class="primary">영상 불러오기</button>
+      </div>
+
+      <div class="files">
+        <label><b>한국어 더빙 WAV</b><input id="wav-file" type="file" accept="audio/wav,audio/*"></label>
+        <label><b>영어 자막 VTT</b><input id="english-vtt" type="file" accept=".vtt,text/vtt"></label>
+        <label><b>한국어 자막 VTT</b><input id="korean-vtt" type="file" accept=".vtt,text/vtt"></label>
+      </div>
+
+      <div class="video"><div id="youtube-player"></div></div>
+
+      <div class="controls">
+        <button id="sync-play" class="primary">동기화 재생</button>
+        <button id="sync-pause">일시정지</button>
+        <span id="clock">00:00 / 00:00 · 대기 중</span>
+      </div>
+
+      <div class="audio-row">
+        <audio id="dub-audio" controls preload="metadata"></audio>
+        <div class="options">
+          <label><input id="sync-enabled" type="checkbox" checked> 자동 동기화</label>
+          <label><input id="mute-youtube" type="checkbox" checked> 원본 음소거</label>
+          <label>오디오 보정 <input id="audio-offset" type="number" value="0" step="0.1">초</label>
+        </div>
+      </div>
+
+      <p id="status" role="status">WAV와 두 VTT 파일을 선택한 뒤 ‘동기화 재생’을 누르세요.</p>
+
+      <div class="subtitles">
+        <article><h2>English subtitle</h2><p id="english-subtitle">영어 VTT 파일을 선택하세요.</p></article>
+        <article class="ko"><h2>한국어 자막</h2><p id="korean-subtitle">한국어 VTT 파일을 선택하세요.</p></article>
+      </div>
+
+      <small>YouTube 영상이 기준 시계입니다. 약간 어긋나면 오디오 보정을 0.1초 단위로 조절하세요.</small>
+    </section>
+  </main>
+  <script src="player.js"></script>
+</body>
+</html>
