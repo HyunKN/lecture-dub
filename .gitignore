@@ -13,3 +13,5 @@ output/en/*
 !output/ko/
 output/ko/*
 !output/ko/.gitkeep
+!output/.gitkeep
+design-qa.md

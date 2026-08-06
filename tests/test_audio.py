@@ -20,11 +20,11 @@ def test_atempo_chain_rejects_non_positive_speed() -> None:
 
 def test_format_progress_reports_percentage_and_counts() -> None:
     assert format_progress("TTS", 5, 10, width=10) == (
-        "TTS [#####-----] 5/10 (50.0%)"
+        "TTS [■■■■■-----] 5/10 (50.0%)"
     )
 
 
 def test_format_progress_clamps_current_to_total() -> None:
     assert format_progress("WAV", 12, 10, width=10) == (
-        "WAV [##########] 10/10 (100.0%)"
+        "WAV [■■■■■■■■■■] 10/10 (100.0%)"
     )
