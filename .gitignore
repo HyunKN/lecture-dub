@@ -7,4 +7,9 @@ __pycache__/
 dist/
 build/
 output/*
-!output/.gitkeep
+!output/en/
+output/en/*
+!output/en/.gitkeep
+!output/ko/
+output/ko/*
+!output/ko/.gitkeep

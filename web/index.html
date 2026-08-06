@@ -6,52 +6,112 @@
   <title>Lecture Dub Player</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <main>
-    <header>
-      <h1>Lecture Dub Player</h1>
-      <p>YouTube 영상에 한국어 WAV와 영어·한국어 자막을 맞춰 재생합니다.</p>
-    </header>
+<body class="study-desk">
+  <header class="shell product-header glass-surface">
+    <div class="brand-lockup">
+      <strong>Lecture Dub</strong>
+      <span>유튜브 강의와 로컬 한국어 더빙을 한 타임라인으로 학습합니다.</span>
+    </div>
+    <p class="privacy-badge">WAV/VTT는 브라우저에서만 처리</p>
+  </header>
 
-    <section class="panel">
-      <div class="url-row">
-        <input id="youtube-url" type="url" value="https://www.youtube.com/watch?v=_NLHFoVNlbg" aria-label="YouTube URL">
-        <button id="load-video" class="primary">영상 불러오기</button>
-      </div>
-
-      <div class="files">
-        <label><b>한국어 더빙 WAV</b><input id="wav-file" type="file" accept="audio/wav,audio/*"></label>
-        <label><b>영어 자막 VTT</b><input id="english-vtt" type="file" accept=".vtt,text/vtt"></label>
-        <label><b>한국어 자막 VTT</b><input id="korean-vtt" type="file" accept=".vtt,text/vtt"></label>
-      </div>
-
-      <div class="video"><div id="youtube-player"></div></div>
-
-      <div class="controls">
-        <button id="sync-play" class="primary">동기화 재생</button>
-        <button id="sync-pause">일시정지</button>
-        <span id="clock">00:00 / 00:00 · 대기 중</span>
-      </div>
-
-      <div class="audio-row">
-        <audio id="dub-audio" controls preload="metadata"></audio>
-        <div class="options">
-          <label><input id="sync-enabled" type="checkbox" checked> 자동 동기화</label>
-          <label><input id="mute-youtube" type="checkbox" checked> 원본 음소거</label>
-          <label>오디오 보정 <input id="audio-offset" type="number" value="0" step="0.1">초</label>
+  <main class="shell">
+    <form class="setup glass-surface" aria-labelledby="setup-title" novalidate>
+      <fieldset>
+        <legend>강의 준비 자산</legend>
+        <div class="setup-head">
+          <div>
+            <h1 id="setup-title">강의 준비</h1>
+            <p>Video와 Korean WAV가 준비되면 자막 없이도 재생할 수 있습니다.</p>
+          </div>
+          <p class="readiness" id="readiness-summary" role="status"><span></span>준비 자산 0 / 4</p>
         </div>
+
+        <div class="setup-grid">
+          <section class="asset asset-url glass-surface" aria-labelledby="video-label">
+            <div class="asset-title"><label id="video-label" for="youtube-url">YouTube Video</label><span class="state" id="video-state">확인 필요</span></div>
+            <div class="url-row">
+              <input id="youtube-url" type="url" value="https://www.youtube.com/watch?v=_NLHFoVNlbg" aria-describedby="video-meta">
+              <button id="load-video" type="button">확인</button>
+            </div>
+            <p class="asset-meta" id="video-meta">YouTube가 master clock입니다.</p>
+          </section>
+
+          <label class="asset glass-surface" for="wav-file">
+            <span class="asset-title"><span>Korean WAV</span><span class="state" id="wav-state">선택 필요</span></span>
+            <span class="asset-name" id="wav-name">한국어 더빙 파일</span>
+            <span class="asset-meta" id="wav-meta">로컬 WAV · 아직 선택되지 않음</span>
+            <input id="wav-file" type="file" accept="audio/wav,audio/*">
+          </label>
+
+          <label class="asset glass-surface" for="english-vtt">
+            <span class="asset-title"><span>English VTT</span><span class="state" id="en-state">선택 필요</span></span>
+            <span class="asset-name" id="en-name">원문 자막 파일</span>
+            <span class="asset-meta" id="en-meta">reference · 아직 선택되지 않음</span>
+            <input id="english-vtt" type="file" accept=".vtt,text/vtt">
+          </label>
+
+          <label class="asset glass-surface" for="korean-vtt">
+            <span class="asset-title"><span>Korean VTT</span><span class="state" id="ko-state">선택 필요</span></span>
+            <span class="asset-name" id="ko-name">번역 자막 파일</span>
+            <span class="asset-meta" id="ko-meta">primary · 아직 선택되지 않음</span>
+            <input id="korean-vtt" type="file" accept=".vtt,text/vtt">
+          </label>
+        </div>
+
+        <div class="launch-row">
+          <p>파일은 이 브라우저 탭에서만 읽으며 서버로 전송하거나 업로드하지 않습니다.</p>
+          <button id="sync-play" class="primary-action" type="button" disabled>동기화 재생</button>
+        </div>
+        <p class="warning" id="setup-warning" role="alert" hidden></p>
+      </fieldset>
+    </form>
+
+    <section class="workspace" aria-label="동기화 학습 플레이어">
+      <div class="stage-wrap">
+        <div class="video-stage media-surface"><div id="youtube-player" aria-label="YouTube 강의 영상"></div></div>
+        <p class="master-note">YouTube의 seek와 재생 시간이 기준이며, 로컬 WAV가 자동으로 따라갑니다.</p>
       </div>
 
-      <p id="status" role="status">WAV와 두 VTT 파일을 선택한 뒤 ‘동기화 재생’을 누르세요.</p>
+      <aside class="study-panel glass-surface" aria-labelledby="subtitle-title">
+        <div class="study-heading"><h2 id="subtitle-title">현재 자막</h2><span id="cue-count">CUE —</span></div>
+        <section class="cue-block korean" aria-labelledby="ko-cue-label">
+          <h3 id="ko-cue-label">한국어 · 현재</h3>
+          <p id="korean-subtitle">한국어 VTT 파일을 선택하세요.</p>
+          <time id="cue-time"></time>
+        </section>
+        <section class="cue-block english" aria-labelledby="en-cue-label">
+          <h3 id="en-cue-label">English · Reference</h3>
+          <p id="english-subtitle">영어 VTT 파일을 선택하세요.</p>
+        </section>
+      </aside>
 
-      <div class="subtitles">
-        <article><h2>English subtitle</h2><p id="english-subtitle">영어 VTT 파일을 선택하세요.</p></article>
-        <article class="ko"><h2>한국어 자막</h2><p id="korean-subtitle">한국어 VTT 파일을 선택하세요.</p></article>
-      </div>
+      <section class="control-deck control-surface" aria-label="더빙 동기화 컨트롤">
+        <section class="transport" aria-label="재생 제어">
+          <button class="play-button" id="play-toggle" type="button" aria-label="재생" aria-pressed="false">▶</button>
+          <span class="time" id="clock">00:00 / 00:00 · 대기 중</span>
+          <div class="progress" id="progress" role="progressbar" aria-label="재생 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+          <button class="control-toggle" id="sync-enabled" type="button" aria-pressed="true">자동 sync 켬</button>
+          <button class="control-toggle" id="mute-youtube" type="button" aria-pressed="true">원음 음소거</button>
+        </section>
 
-      <small>YouTube 영상이 기준 시계입니다. 약간 어긋나면 오디오 보정을 0.1초 단위로 조절하세요.</small>
+        <section class="sync-bar" aria-labelledby="offset-title">
+          <div><strong id="offset-title">더빙 타이밍</strong><span>음성이 늦으면 + · 0.1초씩 조정</span></div>
+          <div class="stepper" role="group" aria-label="더빙 타이밍 보정">
+            <button type="button" data-offset="-0.1" aria-label="더빙을 0.1초 뒤로">−0.1</button>
+            <output id="offset-value" aria-label="현재 오디오 보정">+0.0s</output>
+            <button type="button" data-offset="0.1" aria-label="더빙을 0.1초 앞으로">+0.1</button>
+            <button id="reset-offset" type="button">초기화</button>
+          </div>
+        </section>
+      </section>
     </section>
+
+    <p id="status" class="feedback" role="status">Video와 Korean WAV를 준비하면 동기화 재생할 수 있습니다.</p>
+    <p id="alert" class="alert" role="alert" hidden></p>
+    <audio id="dub-audio" preload="metadata"></audio>
   </main>
+  <script src="liquid-glass.js"></script>
   <script src="player.js"></script>
 </body>
 </html>
