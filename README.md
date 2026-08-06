@@ -12,7 +12,7 @@ flowchart LR
     D --> E["한국어 TTS 생성"]
     E --> F["자막 시간에 맞게 음성 정렬"]
     F --> G["한국어 더빙 WAV 생성"]
-    G --> H["영상과 함께 재생"]
+    G --> H["웹 플레이어에서 영상과 함께 재생"]
 ```
 
 현재 MVP는 영상 자체를 다운로드하지 않습니다. 영어 자막 추출과 한국어 음성 생성은 CLI가 처리하고, 번역된 한국어 VTT는 ChatGPT Plus 같은 번역 도구로 준비합니다.
@@ -31,7 +31,7 @@ flowchart LR
 
 - Python 3.11 이상
 - FFmpeg와 FFprobe
-- 인터넷 연결 (`yt-dlp`, `edge-tts` 사용 시)
+- 인터넷 연결 (`yt-dlp`, `edge-tts`, YouTube 웹 플레이어 사용 시)
 
 ### Windows에서 FFmpeg 설치
 
@@ -125,20 +125,48 @@ WAV 조립 [##############################] 455/455 (100.0%)
 
 TTS가 다음 자막 시작 시각보다 길면 FFmpeg가 해당 구간만 빠르게 조정합니다. 원문에 비해 번역문이 지나치게 길면 음성이 부자연스럽게 빨라질 수 있으므로, 번역 단계에서 문장을 짧게 만드는 것이 중요합니다.
 
-## 영상과 같이 듣기
+## 4. 웹 플레이어에서 영상과 같이 듣기
 
-현재 MVP는 YouTube 영상 자체를 다운로드하거나 수정하지 않습니다. 만들어진 WAV를 로컬 영상과 함께 쓰려면 mpv 같은 플레이어에서 외부 오디오로 불러올 수 있습니다.
+저장소 루트에서 로컬 HTTP 서버를 실행합니다.
+
+```powershell
+python -m http.server 8000
+```
+
+브라우저에서 다음 주소를 엽니다.
+
+```text
+http://localhost:8000/web/
+```
+
+페이지에서 YouTube URL, 한국어 WAV, 영어 VTT, 한국어 VTT를 차례로 선택한 뒤 `동기화 재생`을 누릅니다.
+
+웹 플레이어는 다음 기능을 제공합니다.
+
+- YouTube 영상과 한국어 WAV 재생·일시정지·탐색 동기화
+- 현재 시점의 영어·한국어 자막 동시 표시
+- YouTube 원본 음성 음소거
+- 0.1초 단위 오디오 싱크 보정
+- WAV와 VTT를 서버에 업로드하지 않고 브라우저에서 로컬로 읽기
+
+자세한 내용은 [`web/README.md`](web/README.md)를 참고하세요.
+
+로컬 영상 파일과 WAV만 함께 들으려면 mpv도 사용할 수 있습니다.
 
 ```powershell
 mpv lecture.mp4 --audio-file=output\korean_dub.wav
 ```
 
-YouTube 웹 플레이어와 직접 동기화하는 브라우저 확장 기능은 후속 단계입니다.
-
 ## 개발 및 테스트
 
 ```powershell
 pytest -q
+```
+
+웹 플레이어 JavaScript 문법은 다음처럼 확인할 수 있습니다.
+
+```powershell
+node --check web\player.js
 ```
 
 ## 주의 사항
@@ -152,4 +180,5 @@ pytest -q
 - 번역 VTT 품질 검사
 - 중복 자동 자막 정리 및 문장 병합
 - TTS 생성 재시도와 캐시
+- 웹 플레이어 파일 자동 연결
 - YouTube 웹 플레이어 동기화 브라우저 확장
