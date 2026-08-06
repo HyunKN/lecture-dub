@@ -68,7 +68,7 @@ def format_progress(stage: str, current: int, total: int, width: int = 30) -> st
     safe_current = min(max(current, 0), total)
     ratio = safe_current / total
     filled = int(width * ratio)
-    bar = "#" * filled + "-" * (width - filled)
+    bar = "■" * filled + "-" * (width - filled)
     return f"{stage} [{bar}] {safe_current}/{total} ({ratio * 100:.1f}%)"
 
 
