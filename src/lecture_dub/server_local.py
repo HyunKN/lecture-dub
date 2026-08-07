@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
-from fastapi.background import BackgroundTask
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from starlette.background import BackgroundTask
 
 from .model_registry import (
     get_models_root,
