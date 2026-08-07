@@ -13,11 +13,13 @@ import urllib.request
 import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from . import audio as audio_mod
 from .model_registry import LocalModel, scan_models
 from .subtitles import Cue
+
+ProgressCallback = Callable[[str, int, int], None]
 
 
 @dataclass(slots=True)
@@ -69,7 +71,7 @@ def _load_qwen(model: LocalModel):
         import torch
         from qwen_tts import Qwen3TTSModel
     except ImportError as exc:
-        raise RuntimeError("Qwen3-TTS를 사용하려면 `pip install qwen-tts`가 필요합니다.") from exc
+        raise RuntimeError("Qwen3-TTS를 사용하려면 `pip install -e \".[local-qwen]\"`가 필요합니다.") from exc
 
     use_cuda = torch.cuda.is_available()
     kwargs: dict[str, Any] = {
@@ -118,7 +120,7 @@ def _load_supertonic(model: LocalModel):
     try:
         from supertonic import TTS
     except ImportError as exc:
-        raise RuntimeError("Supertonic 3를 사용하려면 `pip install supertonic`이 필요합니다.") from exc
+        raise RuntimeError("Supertonic 3를 사용하려면 `pip install -e \".[local-supertonic]\"`가 필요합니다.") from exc
 
     previous = os.environ.get("SUPERTONIC_CACHE_DIR")
     os.environ["SUPERTONIC_CACHE_DIR"] = model.path
@@ -186,7 +188,7 @@ def _wait_for_fish(url: str, process: subprocess.Popen, timeout: float = 300.0) 
             with urllib.request.urlopen(health, timeout=2) as response:
                 if 200 <= response.status < 300:
                     return
-        except (urllib.error.URLError, TimeoutError):
+        except (urllib.error.URLError, OSError):
             time.sleep(1)
     raise RuntimeError("Fish Speech 로컬 서버 시작 시간이 초과되었습니다.")
 
@@ -205,7 +207,7 @@ def _fish_server(model: LocalModel) -> str:
     if not script.is_file():
         raise RuntimeError(
             "Fish Speech 런타임의 tools/api_server.py를 찾지 못했습니다. "
-            "fish-speech를 editable 설치하거나 FISH_SPEECH_ROOT를 설정해 주세요."
+            "fish-speech를 editable 설치하거나 FISH_SPEECH_ROOT/FISH_SPEECH_URL을 설정해 주세요."
         )
 
     port = _find_free_port()
@@ -236,9 +238,18 @@ def _fish_generate_sync(model: LocalModel, text: str, output: Path) -> None:
     payload = json.dumps(
         {
             "text": text,
+            "chunk_length": 200,
             "format": "wav",
-            "streaming": False,
+            "references": [],
+            "reference_id": None,
             "seed": 42,
+            "use_memory_cache": "on",
+            "normalize": True,
+            "streaming": False,
+            "max_new_tokens": 1024,
+            "top_p": 0.7,
+            "repetition_penalty": 1.2,
+            "temperature": 0.7,
         }
     ).encode("utf-8")
     request = urllib.request.Request(
@@ -253,6 +264,8 @@ def _fish_generate_sync(model: LocalModel, text: str, output: Path) -> None:
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Fish Speech 합성 요청 실패 ({exc.code}): {detail[:300]}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Fish Speech 서버에 연결할 수 없습니다: {exc.reason}") from exc
     if not data:
         raise RuntimeError("Fish Speech가 빈 오디오를 반환했습니다.")
     output.write_bytes(data)
@@ -289,10 +302,12 @@ async def synthesize_timeline_with_provider(
     selection: ProviderSelection,
     models_root: Path,
     keep_segments: bool = False,
+    progress: ProgressCallback | None = None,
 ) -> None:
     audio_mod.require_ffmpeg()
     if not cues:
         raise ValueError("At least one subtitle cue is required")
+    report = progress or audio_mod.report_progress
 
     model = None
     if selection.engine != "edge":
@@ -306,7 +321,7 @@ async def synthesize_timeline_with_provider(
         temp_dir = Path(temp_name)
         prepared: list[tuple[Cue, Path, float]] = []
         total = len(cues)
-        audio_mod.report_progress("TTS 생성", 0, total)
+        report("TTS 생성", 0, total)
 
         for index, cue in enumerate(cues):
             next_start = cues[index + 1].start if index + 1 < total else cue.end
@@ -324,7 +339,6 @@ async def synthesize_timeline_with_provider(
             elif selection.engine == "supertonic-3":
                 assert model is not None
                 await _supertonic_generate(model, cue.text, raw_path, selection.voice, selection.rate)
-                # Supertonic already applies the requested speed.
                 duration = _convert_local_wav(raw_path, wav_path, slot, 1.0)
             elif selection.engine == "fish-s2-pro":
                 assert model is not None
@@ -334,28 +348,28 @@ async def synthesize_timeline_with_provider(
                 raise RuntimeError(f"지원하지 않는 TTS 엔진입니다: {selection.engine}")
 
             prepared.append((cue, wav_path, duration))
-            audio_mod.report_progress("TTS 생성", index + 1, total)
+            report("TTS 생성", index + 1, total)
 
         with wave.open(str(output), "wb") as target:
             target.setnchannels(audio_mod.CHANNELS)
             target.setsampwidth(audio_mod.SAMPLE_WIDTH)
             target.setframerate(audio_mod.SAMPLE_RATE)
             cursor = 0.0
-            audio_mod.report_progress("WAV 조립", 0, total)
+            report("WAV 조립", 0, total)
             for index, (cue, wav_path, _duration) in enumerate(prepared):
                 if cue.start > cursor:
                     audio_mod.write_silence(target, cue.start - cursor)
                     cursor = cue.start
                 cursor += audio_mod.append_wav(target, wav_path)
-                audio_mod.report_progress("WAV 조립", index + 1, total)
+                report("WAV 조립", index + 1, total)
             target.writeframes(b"")
 
         if keep_segments:
+            import shutil
+
             segment_dir = output.with_suffix("").with_name(output.stem + "-segments")
             if segment_dir.exists():
-                import shutil
                 shutil.rmtree(segment_dir)
-            import shutil
             shutil.copytree(temp_dir, segment_dir)
 
 
