@@ -20,6 +20,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+local-qwen = ["qwen-tts>=0.1.1,<0.2"]
+local-supertonic = ["supertonic>=1.2.2,<2"]
+local = [
+  "qwen-tts>=0.1.1,<0.2",
+  "supertonic>=1.2.2,<2",
+]
 
 [project.scripts]
 lecture-dub = "lecture_dub.cli:main"
