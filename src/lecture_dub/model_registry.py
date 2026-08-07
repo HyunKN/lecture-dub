@@ -72,6 +72,10 @@ def runtime_available(module: str) -> bool:
         return False
 
 
+def fish_server_url() -> str:
+    return os.environ.get("FISH_SPEECH_URL", "").strip().rstrip("/")
+
+
 def find_fish_runtime_root() -> Path | None:
     configured = os.environ.get("FISH_SPEECH_ROOT", "").strip()
     if configured:
@@ -94,6 +98,13 @@ def find_fish_runtime_root() -> Path | None:
 
 def _has_any_weights(path: Path) -> bool:
     patterns = ("*.safetensors", "*.bin", "*.pth", "*.onnx")
+    return any(next(path.glob(pattern), None) is not None for pattern in patterns)
+
+
+def _has_model_weights(path: Path) -> bool:
+    if (path / "model.safetensors.index.json").is_file():
+        return True
+    patterns = ("model*.safetensors", "pytorch_model*.bin", "model*.bin")
     return any(next(path.glob(pattern), None) is not None for pattern in patterns)
 
 
@@ -189,7 +200,7 @@ def _detect_fish(path: Path, config: dict[str, Any]) -> LocalModel | None:
         return None
 
     has_codec = (path / "codec.pth").is_file()
-    has_model = (path / "model.safetensors.index.json").is_file() or _has_any_weights(path)
+    has_model = _has_model_weights(path)
     if not (has_codec and has_model):
         return LocalModel(
             id=f"fish:{path.resolve()}",
@@ -201,15 +212,22 @@ def _detect_fish(path: Path, config: dict[str, Any]) -> LocalModel | None:
             variant="s2-pro",
         )
 
+    server_url = fish_server_url()
     runtime_root = find_fish_runtime_root()
-    is_supported_os = platform.system() == "Linux" or "microsoft" in platform.release().lower()
-    ready = runtime_root is not None and is_supported_os
-    if runtime_root is None:
-        reason = "fish-speech 런타임을 찾지 못했습니다. editable 설치 또는 FISH_SPEECH_ROOT가 필요합니다."
-    elif not is_supported_os:
-        reason = "Fish Audio S2 Pro 공식 로컬 런타임은 Linux/WSL 사용을 권장합니다."
+    local_supported = platform.system() == "Linux"
+    ready = bool(server_url) or (runtime_root is not None and local_supported)
+    if server_url:
+        reason = ""
+        runtime = server_url
+    elif runtime_root is None:
+        reason = "fish-speech 런타임을 찾지 못했습니다. editable 설치, FISH_SPEECH_ROOT 또는 FISH_SPEECH_URL이 필요합니다."
+        runtime = ""
+    elif not local_supported:
+        reason = "Windows에서는 Fish Speech를 WSL/Docker에서 실행하고 FISH_SPEECH_URL로 연결하는 방식을 권장합니다."
+        runtime = str(runtime_root)
     else:
         reason = ""
+        runtime = str(runtime_root)
 
     return LocalModel(
         id=f"fish:{path.resolve()}",
@@ -219,13 +237,13 @@ def _detect_fish(path: Path, config: dict[str, Any]) -> LocalModel | None:
         ready=ready,
         reason=reason,
         variant="s2-pro",
-        voices=["Seed 42"],
-        runtime=str(runtime_root) if runtime_root else "",
+        voices=["Random timbre (Seed 42)"],
+        runtime=runtime,
         metadata={"recommended_vram_gb": 24, "language": "Korean"},
     )
 
 
-def _candidate_dirs(root: Path, max_depth: int = 2) -> list[Path]:
+def _candidate_dirs(root: Path, max_depth: int = 3) -> list[Path]:
     if not root.is_dir():
         return []
     result = [root]
@@ -270,12 +288,20 @@ def scan_models(root: Path) -> list[LocalModel]:
 
 def runtime_summary() -> dict[str, Any]:
     fish_root = find_fish_runtime_root()
+    server_url = fish_server_url()
     return {
-        "qwen3-tts": {"available": runtime_available("qwen_tts"), "install": "pip install qwen-tts"},
-        "supertonic-3": {"available": runtime_available("supertonic"), "install": "pip install supertonic"},
+        "qwen3-tts": {
+            "available": runtime_available("qwen_tts"),
+            "install": 'pip install -e ".[local-qwen]"',
+        },
+        "supertonic-3": {
+            "available": runtime_available("supertonic"),
+            "install": 'pip install -e ".[local-supertonic]"',
+        },
         "fish-s2-pro": {
-            "available": fish_root is not None,
+            "available": bool(server_url) or (fish_root is not None and platform.system() == "Linux"),
             "runtime_root": str(fish_root) if fish_root else "",
-            "install": "fish-speech 저장소에서 pip install -e . (Linux/WSL 권장)",
+            "server_url": server_url,
+            "install": "fish-speech를 Linux/WSL/Docker에서 실행한 뒤 FISH_SPEECH_URL을 설정하거나 editable 설치",
         },
     }
