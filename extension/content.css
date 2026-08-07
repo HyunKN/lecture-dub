@@ -1,0 +1,361 @@
+#lecture-dub-extension-root {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  right: 22px;
+  bottom: 22px;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #151515;
+}
+
+#lecture-dub-extension-root *,
+#lecture-dub-extension-root *::before,
+#lecture-dub-extension-root *::after {
+  box-sizing: border-box;
+}
+
+#lecture-dub-extension-root button,
+#lecture-dub-extension-root input,
+#lecture-dub-extension-root label {
+  font: inherit;
+}
+
+#lecture-dub-extension-root button,
+#lecture-dub-extension-root input,
+#lecture-dub-extension-root label,
+#lecture-dub-extension-root .ld-panel {
+  pointer-events: auto;
+}
+
+#lecture-dub-extension-root .ld-launcher {
+  display: block;
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 17px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  background: rgba(20, 20, 20, .94);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, .28);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+#lecture-dub-extension-root .ld-panel {
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(760px, calc(100vh - 90px));
+  margin-bottom: 10px;
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, .12);
+  border-radius: 18px;
+  background: rgba(250, 250, 249, .97);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+  color: #151515;
+}
+
+#lecture-dub-extension-root .ld-panel[hidden] {
+  display: none !important;
+}
+
+#lecture-dub-extension-root .ld-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 17px 13px;
+  border-bottom: 1px solid rgba(0, 0, 0, .1);
+}
+
+#lecture-dub-extension-root .ld-header strong,
+#lecture-dub-extension-root .ld-header span {
+  display: block;
+}
+
+#lecture-dub-extension-root .ld-header strong {
+  font-size: 16px;
+  letter-spacing: -.025em;
+}
+
+#lecture-dub-extension-root .ld-header span {
+  margin-top: 2px;
+  color: #666;
+  font-size: 11px;
+}
+
+#lecture-dub-extension-root .ld-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #ededeb;
+  color: #333;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+
+#lecture-dub-extension-root .ld-privacy {
+  margin: 0;
+  padding: 11px 17px;
+  background: #f0f0ed;
+  color: #666;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+#lecture-dub-extension-root .ld-files {
+  display: grid;
+  gap: 8px;
+  padding: 14px 17px;
+}
+
+#lecture-dub-extension-root .ld-file {
+  position: relative;
+  display: block;
+  min-height: 67px;
+  padding: 11px 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, .11);
+  border-radius: 11px;
+  background: #fff;
+  cursor: pointer;
+}
+
+#lecture-dub-extension-root .ld-file:hover {
+  border-color: rgba(0, 0, 0, .28);
+}
+
+#lecture-dub-extension-root .ld-file > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#lecture-dub-extension-root .ld-file b {
+  font-size: 12px;
+}
+
+#lecture-dub-extension-root .ld-file em {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eeeeec;
+  color: #747474;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+#lecture-dub-extension-root .ld-file small {
+  display: block;
+  overflow: hidden;
+  margin-top: 7px;
+  color: #6c6c6c;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#lecture-dub-extension-root .ld-file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+#lecture-dub-extension-root .ld-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 17px 14px;
+}
+
+#lecture-dub-extension-root .ld-primary {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #171717;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#lecture-dub-extension-root .ld-primary:disabled {
+  background: #d7d7d4;
+  color: #8a8a87;
+  cursor: not-allowed;
+}
+
+#lecture-dub-extension-root .ld-primary.is-active {
+  background: #343434;
+}
+
+#lecture-dub-extension-root .ld-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, .1);
+  border-radius: 9px;
+  background: #fff;
+  color: #444;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#lecture-dub-extension-root .ld-check input {
+  margin: 0;
+}
+
+#lecture-dub-extension-root .ld-volume,
+#lecture-dub-extension-root .ld-offset {
+  padding: 13px 17px;
+  border-top: 1px solid rgba(0, 0, 0, .09);
+}
+
+#lecture-dub-extension-root .ld-volume > div,
+#lecture-dub-extension-root .ld-offset > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#lecture-dub-extension-root .ld-volume span,
+#lecture-dub-extension-root .ld-offset span {
+  font-size: 11px;
+  font-weight: 750;
+}
+
+#lecture-dub-extension-root .ld-volume output,
+#lecture-dub-extension-root .ld-offset small {
+  color: #777;
+  font-size: 10px;
+}
+
+#lecture-dub-extension-root .ld-volume input[type="range"] {
+  width: 100%;
+  margin: 10px 0 0;
+}
+
+#lecture-dub-extension-root .ld-stepper {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+#lecture-dub-extension-root .ld-stepper button,
+#lecture-dub-extension-root .ld-stepper output {
+  min-height: 34px;
+  border: 1px solid rgba(0, 0, 0, .1);
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 10px;
+}
+
+#lecture-dub-extension-root .ld-stepper button {
+  padding: 0 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+#lecture-dub-extension-root .ld-stepper output {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+#lecture-dub-extension-root .ld-captions {
+  padding: 0 17px 14px;
+  border-top: 1px solid rgba(0, 0, 0, .09);
+}
+
+#lecture-dub-extension-root .ld-caption {
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, .08);
+}
+
+#lecture-dub-extension-root .ld-caption:last-child {
+  border-bottom: 0;
+}
+
+#lecture-dub-extension-root .ld-caption span {
+  color: #777;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#lecture-dub-extension-root .ld-caption p {
+  margin: 7px 0 0;
+  color: #222;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+#lecture-dub-extension-root .ld-ko p {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+#lecture-dub-extension-root .ld-en p {
+  color: #666;
+}
+
+#lecture-dub-extension-root .ld-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 17px 12px;
+  border-top: 1px solid rgba(0, 0, 0, .09);
+  color: #747474;
+  font-size: 10px;
+}
+
+#lecture-dub-extension-root .ld-footer [data-clock] {
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+#lecture-dub-extension-root .ld-footer [data-status] {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#lecture-dub-extension-root .ld-footer [data-status].is-error {
+  color: #a12b2b;
+}
+
+#lecture-dub-extension-root button:focus-visible,
+#lecture-dub-extension-root input:focus-visible,
+#lecture-dub-extension-root label:focus-within {
+  outline: 2px solid #111;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  #lecture-dub-extension-root {
+    right: 14px;
+    bottom: 14px;
+  }
+
+  #lecture-dub-extension-root .ld-panel {
+    max-height: calc(100vh - 76px);
+  }
+}
