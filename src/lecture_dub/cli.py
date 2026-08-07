@@ -38,6 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
     synth_parser.add_argument("--rate", default="+5%")
     synth_parser.add_argument("--keep-segments", action="store_true")
 
+    serve_parser = subparsers.add_parser(
+        "serve", help="Launch the web UI (replaces python -m http.server)."
+    )
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=8000)
+
     return parser
 
 
@@ -69,6 +75,18 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             print(f"Created: {args.output}")
+            return 0
+
+        if args.command == "serve":
+            import uvicorn
+
+            print(f"Lecture Dub 웹 앱을 시작합니다: http://{args.host}:{args.port}")
+            uvicorn.run(
+                "lecture_dub.server:app",
+                host=args.host,
+                port=args.port,
+                log_level="info",
+            )
             return 0
 
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:

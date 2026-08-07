@@ -24,5 +24,8 @@ def extract_english_subtitles(url: str, output_dir: Path, language: str = "en.*"
         template,
         url,
     ]
-    subprocess.run(command, check=True)
-    return sorted(output_dir.glob("*.vtt"), key=lambda path: path.stat().st_mtime, reverse=True)
+    result = subprocess.run(command, capture_output=True, text=True)
+    vtt_files = sorted(output_dir.glob("*.vtt"), key=lambda path: path.stat().st_mtime, reverse=True)
+    if not vtt_files and result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, command)
+    return vtt_files

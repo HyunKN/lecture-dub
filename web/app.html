@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lecture Dub — 올인원 더빙 스튜디오</title>
+  <link rel="stylesheet" href="/web/app.css">
+</head>
+<body class="app-body study-desk">
+
+  <!-- ── 1. Collapsible Sidebar ───────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">LD</div>
+        <div class="brand-text">
+          <strong>Lecture Dub</strong>
+          <span>더빙 스튜디오</span>
+        </div>
+      </div>
+      <button class="toggle-btn" id="sidebar-toggle" type="button" title="사이드바 접기/펼치기" aria-label="사이드바 토글">
+        <svg id="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="pipeline" type="button" title="변환 작업">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+        </svg>
+        <span class="nav-label">1. 변환 작업</span>
+      </button>
+
+      <button class="nav-item" data-page="player" type="button" title="웹 플레이어">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="3" rx="2"/>
+          <polygon points="10 8 15 11 10 14 10 8"/>
+          <line x1="8" x2="16" y1="21" y2="21"/>
+          <line x1="12" x2="12" y1="17" y2="21"/>
+        </svg>
+        <span class="nav-label">2. 웹 플레이어</span>
+      </button>
+
+      <button class="nav-item" data-page="files" type="button" title="생성 파일 관리">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span class="nav-label">3. 생성 파일 관리</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>브라우저 로컬 처리</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── 2. Main Content Container ────────────────────────────────── -->
+  <div class="main-content" id="main-content">
+
+    <!-- ══ PAGE 1: Pipeline (변환 작업) ══════════════════════════ -->
+    <section class="page-view active" id="page-pipeline">
+      <header class="view-header">
+        <h1>강의 더빙 변환 작업</h1>
+        <p>YouTube URL 입력부터 자막 추출, 번역, TTS 음성 합성까지 순서대로 진행합니다.</p>
+      </header>
+
+      <div class="pipeline-container">
+        <!-- Step 1: Extract -->
+        <div class="card step-card" id="step-extract">
+          <div class="card-header">
+            <div class="step-num">Step 1</div>
+            <div class="header-titles">
+              <h2>영어 자막 추출</h2>
+              <p>YouTube 영상에서 원문 영어 자막(WebVTT)을 가져옵니다.</p>
+            </div>
+            <span class="status-pill" id="badge-extract">대기 중</span>
+          </div>
+          <div class="card-body">
+            <div class="input-group">
+              <input type="url" id="url-input" placeholder="https://www.youtube.com/watch?v=..." aria-label="YouTube URL">
+              <button type="button" class="btn btn-primary" id="btn-extract">자막 추출 시작</button>
+            </div>
+            <div class="log-box" id="log-extract" hidden></div>
+          </div>
+        </div>
+
+        <!-- Step 2: Translate -->
+        <div class="card step-card" id="step-translate">
+          <div class="card-header">
+            <div class="step-num">Step 2</div>
+            <div class="header-titles">
+              <h2>한국어 자막 번역 & 업로드</h2>
+              <p>추출된 영어 자막을 번역한 후 한국어 VTT 파일로 업로드합니다.</p>
+            </div>
+            <span class="status-pill" id="badge-translate">대기 중</span>
+          </div>
+          <div class="card-body">
+            <div class="guide-panel">
+              <div class="guide-text">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                <span>추출된 영어 VTT를 ChatGPT에 전달하여 한국어로 번역하세요.</span>
+              </div>
+              <div class="prompt-box">
+                <div class="prompt-head">
+                  <span>추천 번역 프롬프트</span>
+                  <button type="button" class="btn-copy" id="btn-copy-prompt">복사하기</button>
+                </div>
+                <pre id="prompt-text">이 영어 강의 VTT를 한국어로 번역해줘.
+
+조건:
+- 타임코드 유지
+- 코드, 변수명, 수식, 모델명은 원문 유지
+- 전문용어를 정확하고 일관되게 번역
+- TTS로 읽기 좋게 짧고 자연스럽게 번역
+- 결과를 UTF-8 WebVTT 파일로 제공</pre>
+              </div>
+            </div>
+
+            <div class="files-preview-row">
+              <span class="field-label">추출된 영어 자막 파일:</span>
+              <div class="file-chips" id="en-files-chips">
+                <span class="file-chip empty">아직 추출된 파일이 없습니다.</span>
+              </div>
+            </div>
+
+            <div class="upload-dropzone" id="dropzone">
+              <input type="file" id="vtt-upload-input" accept=".vtt,text/vtt" hidden>
+              <div class="dropzone-content">
+                <div class="upload-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                </div>
+                <div class="upload-text">
+                  <strong>번역된 한국어 VTT 파일 선택 또는 드래그</strong>
+                  <span>.vtt 확장자 파일만 지원합니다.</span>
+                </div>
+              </div>
+            </div>
+            <div class="upload-status" id="upload-status-msg" hidden></div>
+          </div>
+        </div>
+
+        <!-- Step 3: Synthesize -->
+        <div class="card step-card" id="step-synth">
+          <div class="card-header">
+            <div class="step-num">Step 3</div>
+            <div class="header-titles">
+              <h2>한국어 음성(TTS) 합성</h2>
+              <p>업로드한 한국어 자막을 바탕으로 동기화 음성을 생성합니다.</p>
+            </div>
+            <span class="status-pill" id="badge-synth">대기 중</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="select-ko-vtt">대상이 될 한국어 VTT</label>
+                <select id="select-ko-vtt">
+                  <option value="">선택 가능한 VTT 파일 없음</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <div class="label-with-action">
+                  <label for="select-voice">목소리 선택</label>
+                  <button type="button" id="btn-preview-voice" class="voice-preview-btn" title="선택한 목소리 샘플 듣기">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                    <span>샘플 미리듣기</span>
+                  </button>
+                </div>
+                <select id="select-voice">
+                  <option value="ko-KR-SunHiNeural" selected>SunHi (여성 · 추천)</option>
+                  <option value="ko-KR-InJoonNeural">InJoon (남성)</option>
+                  <option value="ko-KR-HyunsuMultilingualNeural">Hyunsu (남성 · 다국어)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="select-rate">음성 속도</label>
+                <select id="select-rate">
+                  <option value="+0%">기본 (0%)</option>
+                  <option value="+5%" selected>+5% (추천)</option>
+                  <option value="+8%">+8%</option>
+                  <option value="+10%">+10%</option>
+                  <option value="+15%">+15%</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="input-output-name">결과 파일명 지정 (선택)</label>
+                <input type="text" id="input-output-name" placeholder="비워둘 경우 자막/영상 제목으로 자동 생성됩니다 (예: CS230_Lecture01.ko.wav)" style="height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border-light); font-size: 13px;">
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-primary btn-lg" id="btn-synth" disabled>한국어 음성 합성 시작</button>
+
+            <div class="progress-wrap" id="synth-progress-wrap" hidden>
+              <div class="progress-bar">
+                <div class="progress-fill" id="synth-progress-fill"></div>
+              </div>
+              <div class="progress-info">
+                <span id="synth-stage-text">준비 중...</span>
+                <span id="synth-percent-text">0%</span>
+              </div>
+            </div>
+
+            <div class="log-box" id="log-synth" hidden></div>
+
+            <div class="synth-complete-banner" id="synth-complete-banner" hidden>
+              <div class="complete-text">
+                <strong>한국어 더빙 음성 합성이 완료되었습니다!</strong>
+                <span>생성된 WAV 음성과 자막으로 플레이어를 바로 실행할 수 있습니다.</span>
+              </div>
+              <button type="button" class="btn btn-success" id="btn-go-player">웹 플레이어로 이동하기 →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ PAGE 2: Player (Native Player Integration) ═══════════════ -->
+    <section class="page-view" id="page-player">
+      <header class="view-header">
+        <h1>동기화 웹 플레이어</h1>
+        <p>YouTube 영상과 한국어 더빙 오디오를 동기화하여 학습합니다.</p>
+      </header>
+
+      <!-- Native setup form -->
+      <form class="setup glass-surface" aria-labelledby="setup-title" novalidate>
+        <fieldset>
+          <legend>강의 준비 자산</legend>
+          <div class="setup-head">
+            <div>
+              <h2 id="setup-title">강의 준비</h2>
+              <p>Video와 Korean WAV가 준비되면 자막 없이도 재생할 수 있습니다.</p>
+            </div>
+            <div class="setup-head-actions">
+              <button id="btn-reset-player" type="button" class="reset-all-btn" title="모든 입력값 및 파일 초기화">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>전체 초기화</span>
+              </button>
+              <p class="readiness" id="readiness-summary" role="status"><span></span>준비 자산 0 / 4</p>
+            </div>
+          </div>
+
+          <div class="setup-grid">
+            <section class="asset asset-url glass-surface" aria-labelledby="video-label">
+              <div class="asset-title"><label id="video-label" for="youtube-url">YouTube Video</label><span class="state" id="video-state">확인 필요</span></div>
+              <div class="url-row">
+                <input id="youtube-url" type="url" value="" placeholder="https://www.youtube.com/watch?v=..." aria-describedby="video-meta">
+                <button id="load-video" type="button">확인</button>
+              </div>
+              <p class="asset-meta" id="video-meta">YouTube가 master clock입니다.</p>
+            </section>
+
+            <div class="asset glass-surface" id="asset-wav">
+              <div class="asset-title">
+                <span>Korean WAV</span>
+                <div class="asset-title-actions">
+                  <button type="button" class="card-folder-btn" data-open-folder="ko" title="ko 폴더 탐색기 열기">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  </button>
+                  <span class="state" id="wav-state">선택 필요</span>
+                </div>
+              </div>
+              <span class="asset-name" id="wav-name">한국어 더빙 파일</span>
+              <span class="asset-meta" id="wav-meta">로컬 WAV · 아직 선택되지 않음</span>
+              <input id="wav-file" type="file" accept="audio/wav,audio/*">
+            </div>
+
+            <div class="asset glass-surface" id="asset-en">
+              <div class="asset-title">
+                <span>English VTT</span>
+                <div class="asset-title-actions">
+                  <button type="button" class="card-folder-btn" data-open-folder="en" title="en 폴더 탐색기 열기">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  </button>
+                  <span class="state" id="en-state">선택 필요</span>
+                </div>
+              </div>
+              <span class="asset-name" id="en-name">원문 자막 파일</span>
+              <span class="asset-meta" id="en-meta">reference · 아직 선택되지 않음</span>
+              <input id="english-vtt" type="file" accept=".vtt,text/vtt">
+            </div>
+
+            <div class="asset glass-surface" id="asset-ko">
+              <div class="asset-title">
+                <span>Korean VTT</span>
+                <div class="asset-title-actions">
+                  <button type="button" class="card-folder-btn" data-open-folder="ko" title="ko 폴더 탐색기 열기">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  </button>
+                  <span class="state" id="ko-state">선택 필요</span>
+                </div>
+              </div>
+              <span class="asset-name" id="ko-name">번역 자막 파일</span>
+              <span class="asset-meta" id="ko-meta">primary · 아직 선택되지 않음</span>
+              <input id="korean-vtt" type="file" accept=".vtt,text/vtt">
+            </div>
+          </div>
+
+          <!-- Quick loader for server-side output files -->
+          <div class="server-quick-loader" id="server-quick-loader">
+            <span class="quick-title">생성된 서버 파일 빠르게 적용하기:</span>
+            <div class="chips-container" id="server-file-chips">
+              <span class="chip-loading">서버 파일 확인 중...</span>
+            </div>
+          </div>
+
+          <div class="launch-row">
+            <p>파일은 이 브라우저 탭에서만 읽으며 서버로 전송하거나 업로드하지 않습니다.</p>
+            <button id="sync-play" class="primary-action" type="button" disabled>동기화 재생</button>
+          </div>
+          <p class="warning" id="setup-warning" role="alert" hidden></p>
+        </fieldset>
+      </form>
+
+      <!-- Native workspace -->
+      <section class="workspace" aria-label="동기화 학습 플레이어">
+        <div class="stage-wrap">
+          <div class="video-stage media-surface"><div id="youtube-player" aria-label="YouTube 강의 영상"></div></div>
+          <p class="master-note">YouTube의 seek와 재생 시간이 기준이며, 로컬 WAV가 자동으로 따라갑니다.</p>
+        </div>
+
+        <aside class="study-panel glass-surface" aria-labelledby="subtitle-title">
+          <div class="study-heading"><h2 id="subtitle-title">현재 자막</h2><span id="cue-count">CUE —</span></div>
+          <section class="cue-block korean" aria-labelledby="ko-cue-label">
+            <h3 id="ko-cue-label">한국어 · 현재</h3>
+            <p id="korean-subtitle">한국어 VTT 파일을 선택하세요.</p>
+            <time id="cue-time"></time>
+          </section>
+          <section class="cue-block english" aria-labelledby="en-cue-label">
+            <h3 id="en-cue-label">English · Reference</h3>
+            <p id="english-subtitle">영어 VTT 파일을 선택하세요.</p>
+          </section>
+        </aside>
+
+        <section class="control-deck control-surface" aria-label="더빙 동기화 컨트롤">
+          <section class="transport" aria-label="재생 제어">
+            <button class="play-button" id="play-toggle" type="button" aria-label="재생" aria-pressed="false">▶</button>
+            <span class="time" id="clock">00:00 / 00:00 · 대기 중</span>
+            <div class="progress" id="progress" role="progressbar" aria-label="재생 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+            <button class="control-toggle" id="sync-enabled" type="button" aria-pressed="true">자동 sync 켬</button>
+            <button class="control-toggle" id="mute-youtube" type="button" aria-pressed="true">원음 음소거</button>
+          </section>
+
+          <section class="sync-bar" aria-labelledby="offset-title">
+            <div><strong id="offset-title">더빙 타이밍</strong><span>음성이 늦으면 + · 0.1초씩 조정</span></div>
+            <div class="stepper" role="group" aria-label="더빙 타이밍 보정">
+              <button type="button" data-offset="-0.1" aria-label="더빙을 0.1초 뒤로">−0.1</button>
+              <output id="offset-value" aria-label="현재 오디오 보정">+0.0s</output>
+              <button type="button" data-offset="0.1" aria-label="더빙을 0.1초 앞으로">+0.1</button>
+              <button id="reset-offset" type="button">초기화</button>
+            </div>
+          </section>
+
+          <section class="volume-bar" aria-labelledby="volume-title">
+            <div>
+              <strong id="volume-title">더빙 볼륨</strong>
+              <span>한국어 더빙 음량 크기 조절</span>
+            </div>
+            <div class="volume-control-group">
+              <span class="volume-readout" id="volume-readout">100%</span>
+              <div class="volume-slider-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                <input type="range" id="dub-volume" min="0" max="100" value="100" step="1" aria-label="더빙 음량 조절">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </div>
+            </div>
+          </section>
+
+          <div class="toggle-status-bar" aria-label="동기화 및 원음 상태">
+            <div class="toggle-badge-box" id="sync-status-box">
+              <span class="badge-label">동기화 상태</span>
+              <strong class="badge-value active" id="sync-status-badge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>켬 (자동 Sync)</span>
+              </strong>
+            </div>
+            <div class="toggle-badge-box" id="mute-status-box">
+              <span class="badge-label">YouTube 원음</span>
+              <strong class="badge-value active" id="mute-status-badge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                <span>음소거 중</span>
+              </strong>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <p id="status" class="feedback" role="status">Video와 Korean WAV를 준비하면 동기화 재생할 수 있습니다.</p>
+      <p id="alert" class="alert" role="alert" hidden></p>
+      <audio id="dub-audio" preload="metadata"></audio>
+    </section>
+
+    <!-- ══ PAGE 3: Files (생성 파일 관리) ════════════════════════ -->
+    <section class="page-view" id="page-files">
+      <header class="view-header flex-between">
+        <div>
+          <h1>생성 파일 관리</h1>
+          <p>output/ 폴더 내 파일 관리 및 탐색기 열기/삭제 기능을 제공합니다.</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn btn-outline" id="btn-open-explorer-all">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>output 폴더 열기</span>
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-refresh-files">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+            <span>새로고침</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="files-grid">
+        <div class="card files-card">
+          <div class="card-header flex-between">
+            <h3>output/en/ (영어 자막)</h3>
+            <button type="button" class="btn-icon-text" data-open-folder="en">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span>en 폴더 열기</span>
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="file-list" id="list-en-files">
+              <div class="empty-state">파일이 없습니다.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card files-card">
+          <div class="card-header flex-between">
+            <h3>output/ko/ (한국어 자막 및 WAV)</h3>
+            <button type="button" class="btn-icon-text" data-open-folder="ko">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span>ko 폴더 열기</span>
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="file-list" id="list-ko-files">
+              <div class="empty-state">파일이 없습니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="/web/liquid-glass.js"></script>
+  <script src="/web/player.js"></script>
+  <script src="/web/app.js"></script>
+</body>
+</html>
