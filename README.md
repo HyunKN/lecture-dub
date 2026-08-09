@@ -213,6 +213,10 @@ WAV는 필수이고 VTT 두 파일은 자막 표시를 위한 선택 항목입�
 
 YouTube에서 다른 영상으로 이동하면 이전 영상의 더빙은 자동으로 중지됩니다.
 
+다음은 사용 예시 스크린샷입니다. (강의: https://youtu.be/_NLHFoVNlbg?si=5OlOQ_bwTEgayyDX)
+<img width="960" height="480" alt="image" src="https://github.com/user-attachments/assets/ff9194fc-7314-439c-8048-b32fe1853433" />
+
+
 자세한 내용은 [`extension/README.md`](extension/README.md)를 참고하세요.
 
 > 이 확장 프로그램은 YouTube의 접근 제한, 유료 콘텐츠 또는 비공개 콘텐츠를 우회하지 않습니다. 사용자가 원래 시청할 수 있는 YouTube 영상의 재생 시간에 로컬 WAV/VTT를 맞춰 재생합니다.
