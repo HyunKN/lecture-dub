@@ -34,7 +34,7 @@ flowchart TD
 
 | TTS | 방식 | 특징 |
 | --- | --- | --- |
-| Edge TTS | 온라인 | 기본 제공, 별도 모델 다운로드 불필요 |
+| Edge TTS | 온라인 | 기본 제공, 별도 모델 다운로드 불필요 (*빠름/편리 추천) |
 | Qwen3-TTS CustomVoice / VoiceDesign | 로컬 | 로컬 체크포인트 직접 사용, GPU 권장 |
 | Supertonic 3 | 로컬 | ONNX 기반, CPU 사용 가능 |
 | Fish Audio S2 Pro | 로컬 API | Linux/WSL/Docker 기반 별도 실행 환경 권장 |
