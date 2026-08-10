@@ -20,19 +20,27 @@ app = FastAPI(title="Lecture Dub")
 async def index() -> HTMLResponse:
     response = await existing_index()
     html = response.body.decode("utf-8")
-    injection = '<script src="/web/subtitle-quality.js"></script>\n'
+    injection = '<script src="/web/subtitle-quality.js?v=20260810-2"></script>\n'
     if injection not in html:
         html = html.replace("</body>", f"  {injection}</body>")
     return HTMLResponse(html)
 
 
 @app.get("/api/subtitle-quality")
-async def subtitle_quality():
-    files = await asyncio.to_thread(rank_english_vtts, OUTPUT_DIR / "en")
+async def subtitle_quality(video_id: str | None = None):
+    requested_video_id = (video_id or "").strip()
+    if not requested_video_id:
+        files = []
+    else:
+        ranked = await asyncio.to_thread(rank_english_vtts, OUTPUT_DIR / "en")
+        files = [item for item in ranked if item.group == requested_video_id]
+
     return {
+        "video_id": requested_video_id,
         "files": [item.to_dict() for item in files],
         "policy": {
             "basis": "content-quality",
+            "scope": "current-video",
             "filename_bonus": False,
             "signals": [
                 "inline_timestamp_ratio",
