@@ -108,3 +108,31 @@ def test_quality_server_injects_ui_and_registers_api_route() -> None:
     body = response.body.decode("utf-8")
     assert "/web/local-models.js" in body
     assert "/web/subtitle-quality.js" in body
+
+
+def test_quality_server_returns_only_requested_video(monkeypatch) -> None:
+    class FakeQuality:
+        def __init__(self, group: str, name: str) -> None:
+            self.group = group
+            self.name = name
+
+        def to_dict(self) -> dict[str, str]:
+            return {"group": self.group, "name": self.name}
+
+    ranked = [
+        FakeQuality("LECTURE1", "lecture-1.en-US.vtt"),
+        FakeQuality("LECTURE2", "lecture-2.en-US.vtt"),
+        FakeQuality("LECTURE2", "lecture-2.en-orig.vtt"),
+    ]
+    monkeypatch.setattr(server_quality, "rank_english_vtts", lambda _root: ranked)
+
+    without_video = asyncio.run(server_quality.subtitle_quality())
+    lecture_two = asyncio.run(server_quality.subtitle_quality("LECTURE2"))
+
+    assert without_video["files"] == []
+    assert lecture_two["video_id"] == "LECTURE2"
+    assert [item["name"] for item in lecture_two["files"]] == [
+        "lecture-2.en-US.vtt",
+        "lecture-2.en-orig.vtt",
+    ]
+    assert lecture_two["policy"]["scope"] == "current-video"
