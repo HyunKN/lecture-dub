@@ -304,6 +304,9 @@
   font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 #lecture-dub-extension-root .ld-ko p {

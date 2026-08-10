@@ -436,6 +436,66 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
+  function setCaptionText(target, text) {
+    if (target.textContent !== text) target.textContent = text;
+  }
+
+  function selectRange(selection, node, start, end) {
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function selectWordAtPoint(caption, selection, x, y) {
+    const caret = document.caretPositionFromPoint?.(x, y);
+    const legacyCaret = caret ? null : document.caretRangeFromPoint?.(x, y);
+    const node = caret?.offsetNode || legacyCaret?.startContainer;
+    let offset = caret?.offset ?? legacyCaret?.startOffset;
+    if (!node || node.nodeType !== Node.TEXT_NODE || !caption.contains(node)) return "";
+
+    const text = node.textContent;
+    const isWordCharacter = character => /[\p{L}\p{N}_'-]/u.test(character || "");
+    if (!isWordCharacter(text[offset]) && offset > 0 && isWordCharacter(text[offset - 1])) offset -= 1;
+    if (!isWordCharacter(text[offset])) return "";
+
+    let start = offset, end = offset + 1;
+    while (start > 0 && isWordCharacter(text[start - 1])) start -= 1;
+    while (end < text.length && isWordCharacter(text[end])) end += 1;
+    selectRange(selection, node, start, end);
+    return text.slice(start, end);
+  }
+
+  let lastCaptionDoubleClick = { target: null, text: "", time: 0 };
+  [ui.koCaption, ui.enCaption].forEach(caption => {
+    caption.addEventListener("dblclick", event => {
+      const selection = window.getSelection();
+      if (!selection) return;
+
+      let selectedText = selection.toString().trim();
+      if (!selectedText || !caption.contains(selection.anchorNode) || !caption.contains(selection.focusNode)) {
+        selectedText = selectWordAtPoint(caption, selection, event.clientX, event.clientY);
+      }
+      const now = performance.now();
+      const shouldExpand = lastCaptionDoubleClick.target === caption
+        && lastCaptionDoubleClick.text === selectedText
+        && now - lastCaptionDoubleClick.time < 2500;
+
+      if (shouldExpand) {
+        event.preventDefault();
+        const range = document.createRange();
+        range.selectNodeContents(caption);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        lastCaptionDoubleClick = { target: null, text: "", time: 0 };
+        return;
+      }
+
+      lastCaptionDoubleClick = { target: caption, text: selectedText, time: now };
+    });
+  });
+
   setInterval(() => {
     const video = state.video && state.video.isConnected ? state.video : findVideo();
     if (video && state.video !== video) attachVideo(video);
@@ -450,8 +510,8 @@
     const ko = activeCue(state.koCues, time);
     const en = activeCue(state.enCues, time);
     ui.clock.textContent = formatTime(time);
-    ui.koCaption.textContent = ko?.text || (state.koCues.length ? "현재 구간에 한국어 자막이 없습니다." : "한국어 자막을 선택하면 현재 문장이 표시됩니다.");
-    ui.enCaption.textContent = en?.text || (state.enCues.length ? "현재 구간에 영어 자막이 없습니다." : "영어 자막을 선택하면 원문이 함께 표시됩니다.");
+    setCaptionText(ui.koCaption, ko?.text || (state.koCues.length ? "현재 구간에 한국어 자막이 없습니다." : "한국어 자막을 선택하면 현재 문장이 표시됩니다."));
+    setCaptionText(ui.enCaption, en?.text || (state.enCues.length ? "현재 구간에 영어 자막이 없습니다." : "영어 자막을 선택하면 원문이 함께 표시됩니다."));
   }, 200);
 
   state.videoKey = currentVideoKey();

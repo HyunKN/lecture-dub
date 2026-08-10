@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lecture Dub — 올인원 더빙 스튜디오</title>
-  <link rel="stylesheet" href="/web/app.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT@2.0.2/fonts/static/woff2/SUIT.css">
+  <link rel="stylesheet" href="/web/app.css?v=20260809-4">
 </head>
 <body class="app-body study-desk">
 
@@ -122,8 +123,8 @@
             </div>
 
             <div class="files-preview-row">
-              <span class="field-label">추출된 영어 자막 파일:</span>
-              <div class="file-chips" id="en-files-chips">
+              <span class="field-label">번역할 영어 자막 추천:</span>
+              <div class="file-chips subtitle-file-recommendations" id="en-files-chips" aria-live="polite">
                 <span class="file-chip empty">아직 추출된 파일이 없습니다.</span>
               </div>
             </div>
@@ -175,6 +176,7 @@
                   <option value="ko-KR-InJoonNeural">InJoon (남성)</option>
                   <option value="ko-KR-HyunsuMultilingualNeural">Hyunsu (남성 · 다국어)</option>
                 </select>
+                <p id="voice-preview-status" class="voice-preview-status" role="status" hidden></p>
               </div>
               <div class="form-group">
                 <label for="select-rate">음성 속도</label>
@@ -235,10 +237,6 @@
               <p>Video와 Korean WAV가 준비되면 자막 없이도 재생할 수 있습니다.</p>
             </div>
             <div class="setup-head-actions">
-              <button id="btn-reset-player" type="button" class="reset-all-btn" title="모든 입력값 및 파일 초기화">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                <span>전체 초기화</span>
-              </button>
               <p class="readiness" id="readiness-summary" role="status"><span></span>준비 자산 0 / 4</p>
             </div>
           </div>
@@ -447,9 +445,17 @@
 
   </div>
 
+  <div class="floating-reset-rail">
+    <aside class="floating-reset-surface" aria-label="입력값 초기화">
+      <button id="btn-floating-reset" type="button" title="입력값을 기본값으로 초기화" aria-label="입력값을 기본값으로 초기화">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+    </aside>
+  </div>
+
   <!-- Scripts -->
-  <script src="/web/liquid-glass.js"></script>
-  <script src="/web/player.js"></script>
-  <script src="/web/app.js"></script>
+  <script src="/web/liquid-glass.js?v=20260808-3"></script>
+  <script src="/web/player.js?v=20260809-5"></script>
+  <script src="/web/app.js?v=20260809-1"></script>
 </body>
 </html>

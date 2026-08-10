@@ -89,6 +89,21 @@
     }
   }
 
+  const WORKFLOW_SETTINGS_KEY = "lecture-dub-workflow-settings";
+
+  function loadWorkflowSettings() {
+    try {
+      return JSON.parse(localStorage.getItem(WORKFLOW_SETTINGS_KEY) || "{}");
+    } catch { return {}; }
+  }
+
+  function saveWorkflowSettings(values) {
+    try {
+      const settings = { ...loadWorkflowSettings(), ...values };
+      localStorage.setItem(WORKFLOW_SETTINGS_KEY, JSON.stringify(settings));
+    } catch { /* silent */ }
+  }
+
   // ── 4. Step 1: Extract Subtitles ──────────────────────────────
   const urlInput = document.getElementById("url-input");
   const btnExtract = document.getElementById("btn-extract");
@@ -151,18 +166,110 @@
   function renderExtractedChips(files) {
     const container = document.getElementById("en-files-chips");
     if (!files || !files.length) {
-      container.innerHTML = '<span class="file-chip empty">아직 추출된 파일이 없습니다.</span>';
+      const empty = document.createElement("span");
+      empty.className = "file-chip empty";
+      empty.textContent = "아직 추출된 파일이 없습니다.";
+      container.replaceChildren(empty);
       return;
     }
-    container.innerHTML = "";
-    for (const f of files) {
+
+    const subtitlePriority = (file) => {
+      const name = String(file?.name || "").toLocaleLowerCase();
+      if (name.endsWith(".en-orig.vtt")) return { rank: 1, reason: "원래 영어 음성에서 나온 자막" };
+      if (name.endsWith(".en.vtt")) return { rank: 2, reason: "일반 English 트랙" };
+      // "en-en-US" also ends with "en-US", so it must be checked first.
+      if (name.endsWith(".en-en-us.vtt")) return { rank: 4, reason: "번역/변환 계열일 가능성이 있어 우선순위 낮음" };
+      if (name.endsWith(".en-us.vtt")) return { rank: 3, reason: "지역 변형/별도 English 트랙" };
+      return { rank: 5, reason: "우선순위 파일명 패턴과 일치하지 않음" };
+    };
+
+    const orderedFiles = [...files]
+      .map(file => ({ file, priority: subtitlePriority(file) }))
+      .sort((a, b) => (
+        a.priority.rank - b.priority.rank
+        || String(a.file?.name || "").localeCompare(String(b.file?.name || ""), undefined, { sensitivity: "base" })
+      ));
+
+    const createDownloadLink = (file, className = "file-chip") => {
       const a = document.createElement("a");
-      a.className = "file-chip";
-      a.href = `/api/files/${f.path}`;
-      a.download = f.name;
-      a.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg><span>${f.name}</span>`;
-      container.appendChild(a);
+      a.className = className;
+      const encodedPath = String(file.path || "").split("/").map(encodeURIComponent).join("/");
+      a.href = `/api/files/${encodedPath}`;
+      a.download = String(file.name || "");
+
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      icon.setAttribute("width", "14");
+      icon.setAttribute("height", "14");
+      icon.setAttribute("viewBox", "0 0 24 24");
+      icon.setAttribute("fill", "none");
+      icon.setAttribute("stroke", "currentColor");
+      icon.setAttribute("stroke-width", "2");
+      icon.setAttribute("stroke-linecap", "round");
+      icon.setAttribute("stroke-linejoin", "round");
+      icon.setAttribute("aria-hidden", "true");
+      for (const [name, attributes] of [
+        ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }],
+        ["polyline", { points: "7 10 12 15 17 10" }],
+        ["line", { x1: "12", x2: "12", y1: "15", y2: "3" }],
+      ]) {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+        for (const [attribute, value] of Object.entries(attributes)) element.setAttribute(attribute, value);
+        icon.appendChild(element);
+      }
+      const name = document.createElement("span");
+      name.textContent = String(file.name || "");
+      a.append(icon, name);
+      return a;
+    };
+
+    const recommended = orderedFiles[0];
+    const recommendation = document.createElement("section");
+    recommendation.className = "subtitle-recommendation";
+
+    const copy = document.createElement("div");
+    copy.className = "subtitle-recommendation-copy";
+    const eyebrow = document.createElement("span");
+    eyebrow.className = "subtitle-recommendation-rank";
+    eyebrow.textContent = recommended.priority.rank <= 4
+      ? `${recommended.priority.rank}순위 추천`
+      : "우선 확인";
+    const reason = document.createElement("span");
+    reason.className = "subtitle-recommendation-reason";
+    reason.textContent = `${recommended.priority.reason} · 이 파일을 번역에 사용하세요.`;
+    copy.append(eyebrow, reason);
+
+    const download = createDownloadLink(recommended.file, "file-chip subtitle-recommendation-download");
+    download.setAttribute("aria-label", `${recommended.file.name} 다운로드`);
+    const downloadLabel = document.createElement("span");
+    downloadLabel.className = "subtitle-download-label";
+    downloadLabel.textContent = "다운로드";
+    download.appendChild(downloadLabel);
+    recommendation.append(copy, download);
+
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(recommendation);
+    if (orderedFiles.length > 1) {
+      const alternatives = document.createElement("details");
+      alternatives.className = "subtitle-alternatives";
+      const summary = document.createElement("summary");
+      summary.textContent = `다른 자막 ${orderedFiles.length - 1}개 보기`;
+      const list = document.createElement("div");
+      list.className = "subtitle-alternatives-list";
+      for (const { file, priority } of orderedFiles.slice(1)) {
+        const item = document.createElement("div");
+        item.className = "subtitle-alternative";
+        const meta = document.createElement("span");
+        meta.className = "subtitle-alternative-meta";
+        meta.textContent = priority.rank <= 4
+          ? `${priority.rank}순위 · ${priority.reason}`
+          : priority.reason;
+        item.append(meta, createDownloadLink(file));
+        list.appendChild(item);
+      }
+      alternatives.append(summary, list);
+      fragment.appendChild(alternatives);
     }
+    container.replaceChildren(fragment);
     loadKoVttOptions();
   }
 
@@ -235,49 +342,112 @@
   const btnSynth = document.getElementById("btn-synth");
 
   const btnPreviewVoice = document.getElementById("btn-preview-voice");
+  const previewStatus = document.getElementById("voice-preview-status");
   let previewAudio = null;
+  let previewAudioUrl = null;
+
+  function setPreviewStatus(message, kind = "") {
+    if (!previewStatus) return;
+    previewStatus.hidden = !message;
+    previewStatus.className = `voice-preview-status ${kind}`.trim();
+    previewStatus.textContent = message || "";
+  }
+
+  function releasePreviewAudio() {
+    if (previewAudio) previewAudio.pause();
+    previewAudio = null;
+    if (previewAudioUrl) URL.revokeObjectURL(previewAudioUrl);
+    previewAudioUrl = null;
+  }
 
   if (btnPreviewVoice && selectVoice) {
     btnPreviewVoice.addEventListener("click", async () => {
       const voice = selectVoice.value;
       if (!voice) return;
 
-      if (previewAudio) {
-        previewAudio.pause();
-        previewAudio = null;
-      }
+      releasePreviewAudio();
 
       btnPreviewVoice.classList.add("playing");
       const btnSpan = btnPreviewVoice.querySelector("span");
       if (btnSpan) btnSpan.textContent = "생성/재생 중...";
+      setPreviewStatus("", "");
 
       try {
-        const audioUrl = `/api/tts/preview?voice=${encodeURIComponent(voice)}&t=${Date.now()}`;
-        previewAudio = new Audio(audioUrl);
+        const selection = typeof window.lectureDubTtsSelection === "function"
+          ? window.lectureDubTtsSelection()
+          : { engine: "edge", modelId: "" };
+        if (selection.engine !== "edge" && !selection.modelId) {
+          throw new Error("로컬 TTS 모델을 선택해 주세요.");
+        }
+
+        const query = new URLSearchParams({
+          voice,
+          engine: selection.engine || "edge",
+          t: String(Date.now()),
+        });
+        if (selection.engine !== "edge" && selection.modelId) query.set("model_id", selection.modelId);
+        const response = await fetch(`/api/tts/preview?${query}`);
+        if (!response.ok) {
+          let message = `HTTP ${response.status}`;
+          try {
+            const data = await response.json();
+            message = data.error || message;
+          } catch { /* keep HTTP status */ }
+          throw new Error(message);
+        }
+        const blob = await response.blob();
+        if (!blob.size) throw new Error("미리듣기 오디오를 생성하지 못했습니다.");
+        previewAudioUrl = URL.createObjectURL(blob);
+        previewAudio = new Audio(previewAudioUrl);
 
         previewAudio.addEventListener("ended", () => {
           btnPreviewVoice.classList.remove("playing");
           if (btnSpan) btnSpan.textContent = "샘플 미리듣기";
+          if (previewAudioUrl) URL.revokeObjectURL(previewAudioUrl);
+          previewAudioUrl = null;
         });
 
         previewAudio.addEventListener("error", () => {
           btnPreviewVoice.classList.remove("playing");
           if (btnSpan) btnSpan.textContent = "샘플 미리듣기";
+          setPreviewStatus("미리듣기 오디오를 재생하지 못했습니다.", "error");
         });
 
         await previewAudio.play();
-      } catch {
+      } catch (error) {
+        releasePreviewAudio();
         btnPreviewVoice.classList.remove("playing");
         if (btnSpan) btnSpan.textContent = "샘플 미리듣기";
+        setPreviewStatus(`미리듣기 실패: ${error.message}`, "error");
       }
     });
   }
+
+  const workflowSettings = loadWorkflowSettings();
+  if (workflowSettings.pipelineUrl && urlInput) urlInput.value = workflowSettings.pipelineUrl;
+  if (workflowSettings.voice && selectVoice.querySelector(`option[value="${CSS.escape(workflowSettings.voice)}"]`)) {
+    selectVoice.value = workflowSettings.voice;
+  }
+  if (workflowSettings.rate && selectRate.querySelector(`option[value="${CSS.escape(workflowSettings.rate)}"]`)) {
+    selectRate.value = workflowSettings.rate;
+  }
+  const outputNameInput = document.getElementById("input-output-name");
+  if (workflowSettings.outputName && outputNameInput) outputNameInput.value = workflowSettings.outputName;
+
+  urlInput.addEventListener("input", () => saveWorkflowSettings({ pipelineUrl: urlInput.value }));
+  selectVoice.addEventListener("change", () => saveWorkflowSettings({ voice: selectVoice.value }));
+  selectRate.addEventListener("change", () => saveWorkflowSettings({ rate: selectRate.value }));
+  if (outputNameInput) outputNameInput.addEventListener("input", () => saveWorkflowSettings({ outputName: outputNameInput.value }));
+  selectKoVtt.addEventListener("change", () => saveWorkflowSettings({ koVtt: selectKoVtt.value }));
 
   const synthProgressWrap = document.getElementById("synth-progress-wrap");
   const synthProgressFill = document.getElementById("synth-progress-fill");
   const synthStageText = document.getElementById("synth-stage-text");
   const synthPercentText = document.getElementById("synth-percent-text");
   const synthBanner = document.getElementById("synth-complete-banner");
+  const SYNTH_JOB_STORAGE_KEY = "lecture-dub-active-synthesis-job";
+  let monitoredSynthJobId = "";
+  let lastSynthMessage = "";
 
   async function loadKoVttOptions() {
     try {
@@ -298,9 +468,69 @@
         opt.textContent = f.name;
         selectKoVtt.appendChild(opt);
       }
+      const savedKoVtt = loadWorkflowSettings().koVtt;
+      if (savedKoVtt && [...selectKoVtt.options].some(option => option.value === savedKoVtt)) {
+        selectKoVtt.value = savedKoVtt;
+      }
       btnSynth.disabled = false;
     } catch {
       btnSynth.disabled = true;
+    }
+  }
+
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function renderSynthesisJob(job) {
+    synthProgressWrap.hidden = false;
+    synthProgressFill.style.width = `${job.percent || 0}%`;
+    synthStageText.textContent = job.status === "complete" ? "완료" : (job.message || "합성 작업 확인 중...");
+    synthPercentText.textContent = `${job.percent || 0}%`;
+
+    if (job.message && job.message !== lastSynthMessage) {
+      appendLog("log-synth", job.message, job.status === "error" ? "error" : "info");
+      lastSynthMessage = job.message;
+    }
+  }
+
+  async function monitorSynthesisJob(jobId) {
+    if (!jobId || monitoredSynthJobId === jobId) return;
+    monitoredSynthJobId = jobId;
+    btnSynth.disabled = true;
+    synthBanner.hidden = true;
+    setPill("badge-synth", "합성 중...", "loading");
+
+    try {
+      while (localStorage.getItem(SYNTH_JOB_STORAGE_KEY) === jobId) {
+        try {
+          const response = await fetch(`/api/synthesize/${encodeURIComponent(jobId)}`, { cache: "no-store" });
+          const job = await response.json();
+          if (!response.ok) throw new Error(job.error || `HTTP ${response.status}`);
+
+          renderSynthesisJob(job);
+          if (job.status === "complete") {
+            synthProgressFill.style.width = "100%";
+            synthPercentText.textContent = "100%";
+            appendLog("log-synth", "한국어 음성 합성이 완료되었습니다.", "success");
+            setPill("badge-synth", "완료", "done");
+            synthBanner.hidden = false;
+            window._lastSynthesizedWav = job.wav;
+            localStorage.removeItem(SYNTH_JOB_STORAGE_KEY);
+            break;
+          }
+          if (job.status === "error") {
+            setPill("badge-synth", "실패", "error");
+            localStorage.removeItem(SYNTH_JOB_STORAGE_KEY);
+            break;
+          }
+        } catch (error) {
+          appendLog("log-synth", `작업 상태를 다시 연결하는 중입니다: ${error.message}`, "error");
+          setPill("badge-synth", "연결 재시도 중", "loading");
+        }
+        await wait(800);
+      }
+    } finally {
+      monitoredSynthJobId = "";
+      btnSynth.disabled = false;
     }
   }
 
@@ -312,8 +542,7 @@
     synthProgressWrap.hidden = false;
     synthBanner.hidden = true;
     clearLog("log-synth");
-    setPill("badge-synth", "합성 중...", "loading");
-
+    lastSynthMessage = "";
     synthProgressFill.style.width = "0%";
     synthStageText.textContent = "TTS 생성 작업 준비 중...";
     synthPercentText.textContent = "0%";
@@ -329,49 +558,23 @@
           output_name: document.getElementById("input-output-name")?.value.trim() || "",
         }),
       });
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = JSON.parse(line.slice(6));
-
-          if (data.type === "progress") {
-            synthProgressFill.style.width = `${data.percent}%`;
-            synthStageText.textContent = `${data.stage} (${data.current}/${data.total})`;
-            synthPercentText.textContent = `${data.percent}%`;
-          } else if (data.type === "status") {
-            appendLog("log-synth", data.message, "info");
-          } else if (data.type === "complete") {
-            synthProgressFill.style.width = "100%";
-            synthStageText.textContent = "완료";
-            synthPercentText.textContent = "100%";
-            appendLog("log-synth", data.message, "success");
-            setPill("badge-synth", "완료", "done");
-            synthBanner.hidden = false;
-            window._lastSynthesizedWav = data.wav;
-          } else if (data.type === "error") {
-            appendLog("log-synth", data.message, "error");
-            setPill("badge-synth", "실패", "error");
-          }
-        }
-      }
+      const job = await response.json();
+      if (!response.ok) throw new Error(job.error || `HTTP ${response.status}`);
+      localStorage.setItem(SYNTH_JOB_STORAGE_KEY, job.id);
+      await monitorSynthesisJob(job.id);
     } catch (err) {
-      appendLog("log-synth", `네트워크 오류: ${err.message}`, "error");
+      appendLog("log-synth", `합성 시작 실패: ${err.message}`, "error");
       setPill("badge-synth", "실패", "error");
-    } finally {
       btnSynth.disabled = false;
     }
   });
+
+  const savedSynthesisJobId = localStorage.getItem(SYNTH_JOB_STORAGE_KEY);
+  if (savedSynthesisJobId) {
+    clearLog("log-synth");
+    appendLog("log-synth", "진행 중인 합성 작업 상태를 다시 연결합니다.", "info");
+    monitorSynthesisJob(savedSynthesisJobId);
+  }
 
   // Go to Player button
   document.getElementById("btn-go-player").addEventListener("click", () => {
@@ -470,6 +673,26 @@
       s[key] = val;
       localStorage.setItem("lecture-dub-player-settings", JSON.stringify(s));
     } catch { /* silent */ }
+  }
+
+  function resetWorkflowInputs() {
+    try {
+      localStorage.removeItem(WORKFLOW_SETTINGS_KEY);
+    } catch { /* silent */ }
+    if (urlInput) urlInput.value = "";
+    if (selectKoVtt) selectKoVtt.selectedIndex = 0;
+    if (selectVoice) selectVoice.value = "ko-KR-SunHiNeural";
+    if (selectRate) selectRate.value = "+5%";
+    if (outputNameInput) outputNameInput.value = "";
+    setPreviewStatus("", "");
+  }
+
+  window.addEventListener("lecture-dub-reset", resetWorkflowInputs);
+  const floatingReset = document.getElementById("btn-floating-reset");
+  if (floatingReset) {
+    floatingReset.addEventListener("click", () => {
+      window.dispatchEvent(new Event("lecture-dub-reset"));
+    });
   }
 
   // ── 8. Files View & Card Folder Buttons (Explorer & Delete Actions)

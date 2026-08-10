@@ -120,6 +120,86 @@ function setPlaying(playing) {
   el.play.setAttribute("aria-pressed", String(playing));
 }
 
+function setCueText(target, text) {
+  if (target.textContent !== text) target.textContent = text;
+}
+
+function frame() {
+  const current = videoTime(), yState = state(), playing = Boolean(yt()?.PlayerState && yState === yt().PlayerState.PLAYING);
+  if (el.sync.getAttribute("aria-pressed") === "true" && audio.src) {
+    if (playing) { syncAudio(); if (audio.paused) audio.play().catch(() => {}); }
+    else if (!audio.paused) audio.pause();
+  }
+  const ko = activeCue(koCues, current), en = activeCue(enCues, current), duration = playerReady ? player.getDuration() : 0;
+  setCueText(el.ko, ko?.cue.text || (assets.ko ? "현재 구간에 한국어 자막이 없습니다." : "한국어 VTT 파일을 선택하세요."));
+  setCueText(el.en, en?.cue.text || (assets.en ? "현재 구간에 영어 자막이 없습니다." : "영어 VTT 파일을 선택하세요."));
+  el.time.textContent = ko ? `${format(ko.cue.start)} — ${format(ko.cue.end)}` : "";
+  el.cueCount.textContent = ko ? `CUE ${ko.index + 1} / ${koCues.length}` : (en ? `CUE ${en.index + 1} / ${enCues.length}` : "CUE —");
+  el.clock.textContent = `${format(current)} / ${format(duration)} · ${playing ? "재생 중" : yState === 2 ? "일시정지" : "대기 중"}`;
+  const percent = duration ? Math.min(100, current / duration * 100) : 0;
+  el.progress.setAttribute("aria-valuenow", String(Math.round(percent)));
+  el.progress.setAttribute("aria-label", `재생 진행률 ${Math.round(percent)}%`);
+  el.progressFill.style.width = `${percent}%`;
+  setPlaying(playing);
+  requestAnimationFrame(frame);
+}
+
+let lastSubtitleDoubleClick = { target: null, text: "", time: 0 };
+
+function selectRange(selection, node, start = 0, end = node.textContent.length) {
+  const range = document.createRange();
+  range.setStart(node, start);
+  range.setEnd(node, end);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function selectWordAtPoint(cue, selection, x, y) {
+  const caret = document.caretPositionFromPoint?.(x, y);
+  const legacyCaret = caret ? null : document.caretRangeFromPoint?.(x, y);
+  const node = caret?.offsetNode || legacyCaret?.startContainer;
+  let offset = caret?.offset ?? legacyCaret?.startOffset;
+  if (!node || node.nodeType !== Node.TEXT_NODE || !cue.contains(node)) return "";
+
+  const text = node.textContent;
+  const isWordCharacter = character => /[\p{L}\p{N}_'-]/u.test(character || "");
+  if (!isWordCharacter(text[offset]) && offset > 0 && isWordCharacter(text[offset - 1])) offset -= 1;
+  if (!isWordCharacter(text[offset])) return "";
+
+  let start = offset, end = offset + 1;
+  while (start > 0 && isWordCharacter(text[start - 1])) start -= 1;
+  while (end < text.length && isWordCharacter(text[end])) end += 1;
+  selectRange(selection, node, start, end);
+  return text.slice(start, end);
+}
+
+document.querySelectorAll(".cue-block p").forEach(cue => {
+  cue.addEventListener("dblclick", event => {
+    const selection = window.getSelection();
+    if (!selection) return;
+    let selectedText = selection.toString().trim();
+    if (!selectedText || !cue.contains(selection.anchorNode) || !cue.contains(selection.focusNode)) {
+      selectedText = selectWordAtPoint(cue, selection, event.clientX, event.clientY);
+    }
+    const now = performance.now();
+    const shouldExpand = lastSubtitleDoubleClick.target === cue
+      && lastSubtitleDoubleClick.text === selectedText
+      && now - lastSubtitleDoubleClick.time < 2500;
+
+    if (shouldExpand) {
+      event.preventDefault();
+      const range = document.createRange();
+      range.selectNodeContents(cue);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      lastSubtitleDoubleClick = { target: null, text: "", time: 0 };
+      return;
+    }
+
+    lastSubtitleDoubleClick = { target: cue, text: selectedText, time: now };
+  });
+});
+
 async function playTogether() {
   if (!assets.video || !assets.wav) return setAlert("Video와 Korean WAV를 먼저 준비해 주세요.");
   if (!playerReady) return setStatus("YouTube 플레이어가 준비되는 중입니다.");
@@ -436,11 +516,13 @@ function resetAllPlayerStates() {
   setStatus("웹 플레이어의 선택 상태가 초기화되었습니다. (실제 PC 디스크 파일은 삭제되지 않습니다)");
 }
 
+window.addEventListener("lecture-dub-reset", resetAllPlayerStates);
+
 const btnReset = $("#btn-reset-player");
 if (btnReset) {
   btnReset.addEventListener("click", () => {
     if (confirm("웹 플레이어의 모든 입력값과 선택 상태를 해제하고 초기화하시겠습니까?\n(※ 실제 PC 디스크의 파일은 절대 삭제되지 않습니다)")) {
-      resetAllPlayerStates();
+      window.dispatchEvent(new Event("lecture-dub-reset"));
     }
   });
 }

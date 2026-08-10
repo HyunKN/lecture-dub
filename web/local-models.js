@@ -3,10 +3,20 @@
   "use strict";
 
   const nativeFetch = window.fetch.bind(window);
+  const TTS_SELECTION_KEY = "lecture-dub-tts-selection";
+
+  function loadSavedSelection() {
+    try {
+      return JSON.parse(localStorage.getItem(TTS_SELECTION_KEY) || "{}");
+    } catch { return {}; }
+  }
+
+  const savedSelection = loadSavedSelection();
   const state = {
     payload: null,
-    engine: "edge",
-    modelId: "",
+    engine: savedSelection.engine || "edge",
+    modelId: savedSelection.modelId || "",
+    voice: savedSelection.voice || "",
   };
 
   const providerNames = {
@@ -20,6 +30,15 @@
     ["ko-KR-InJoonNeural", "InJoon (남성)"],
     ["ko-KR-HyunsuMultilingualNeural", "Hyunsu (남성 · 다국어)"],
   ];
+
+  function publishSelection() {
+    const selection = { engine: state.engine, modelId: state.modelId, voice: state.voice };
+    try {
+      localStorage.setItem(TTS_SELECTION_KEY, JSON.stringify(selection));
+    } catch { /* silent */ }
+    window.lectureDubTtsSelection = () => ({ engine: state.engine, modelId: state.modelId });
+    window.dispatchEvent(new CustomEvent("lecture-dub-tts-selection-change", { detail: selection }));
+  }
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -36,25 +55,42 @@
       .local-model-panel { margin-bottom: 18px; padding: 16px; border: 1px solid var(--border-light, #ddd); border-radius: 12px; background: rgba(247,247,245,.72); }
       .local-model-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
       .local-model-head h3 { margin:0 0 4px; font-size:14px; }
-      .local-model-head p { margin:0; color:var(--text-secondary, #6b6d6c); font-size:12px; line-height:1.5; }
+      .local-model-head p { margin:0; color:var(--text-secondary, #6b6d6c); font-size:12px; font-weight: 600; line-height:1.5; }
       .local-model-badge { flex:0 0 auto; padding:5px 9px; border:1px solid var(--border-light, #ddd); border-radius:999px; font-size:11px; font-weight:700; }
       .local-model-controls { display:grid; grid-template-columns:minmax(180px,.65fr) minmax(250px,1.35fr); gap:12px; }
       .local-model-field label { display:block; margin-bottom:7px; font-size:12px; font-weight:700; }
       .local-root-row { display:flex; gap:7px; }
-      .local-root-row input, .local-model-field select { width:100%; height:42px; min-width:0; padding:0 11px; border:1px solid var(--border-light,#d8d8d5); border-radius:9px; background:#fff; font:inherit; font-size:12px; }
+      .local-root-row input, .local-model-field select { width:100%; height:42px; min-width:0; padding:0 12px; border:1px solid var(--border-light,#d8d8d5); border-radius:9px; background:#fff; font:inherit; font-size:12px;   font-weight: 600; }
       .local-root-row button { min-height:42px; padding:0 11px; border:1px solid var(--border-light,#d8d8d5); border-radius:9px; background:#fff; cursor:pointer; white-space:nowrap; font:inherit; font-size:11px; font-weight:750; }
       .local-model-select-row { display:grid; grid-template-columns:.8fr 1.2fr; gap:8px; }
       .local-model-status { margin-top:12px; border-top:1px solid var(--border-light,#ddd); padding-top:11px; }
-      .local-model-summary { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; color:var(--text-secondary,#666); }
+      .local-model-summary { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight: 600; color:var(--text-secondary,#666); }
       .local-model-list { display:grid; gap:7px; margin-top:9px; }
       .local-model-item { display:grid; grid-template-columns:8px minmax(0,1fr); gap:9px; align-items:start; padding:9px 10px; border:1px solid var(--border-light,#dededb); border-radius:9px; background:rgba(255,255,255,.72); }
       .local-model-dot { width:8px; height:8px; margin-top:4px; border-radius:50%; background:#9a9d9b; }
       .local-model-item.ready .local-model-dot { background:#168443; }
       .local-model-item.pending .local-model-dot { background:#c17b0c; }
       .local-model-item strong { display:block; overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
-      .local-model-item span { display:block; margin-top:3px; color:var(--text-secondary,#717371); font-size:10px; line-height:1.45; }
+      .local-model-item span { display:block; margin-top:3px; color:var(--text-secondary,#717371); font-size:10px; font-weight: 600; line-height:1.45; }
       .local-runtime-help { margin-top:4px; font-family:ui-monospace,Consolas,monospace; color:#555 !important; }
       .local-model-error { margin-top:9px; padding:8px 10px; border-radius:8px; background:#fff0ee; color:#8a3026; font-size:11px; }
+      .local-gpu-guide { display:grid; gap:4px; margin:0 0 12px; padding:10px 12px; border:1px solid var(--border-light,#dededb); border-radius:9px; background:rgba(255,255,255,.58); }
+      .local-gpu-guide.ready { border-color:#168443; }
+      .local-gpu-guide strong { font-size:12px; }
+      .local-gpu-guide p { margin:0; font-size:11px; line-height:1.45; }
+      .local-gpu-guide code { display:block; overflow:auto; margin-top:3px; padding:7px 8px; border-radius:6px; background:rgba(0,0,0,.06); font:10px/1.45 ui-monospace,Consolas,monospace; white-space:pre; }
+      .local-gpu-guide[hidden], .local-gpu-guide code[hidden] { display:none !important; }
+      #local-model-panel,
+      #local-model-panel h3,
+      #local-model-panel p,
+      #local-model-panel label,
+      #local-model-panel strong,
+      #local-model-panel span,
+      #local-model-panel input,
+      #local-model-panel select,
+      #local-model-panel button {
+        color: #000000ff !important;
+      }
       @media (max-width: 800px) { .local-model-controls { grid-template-columns:1fr; } .local-model-select-row { grid-template-columns:1fr; } .local-root-row { flex-wrap:wrap; } }
     `;
     document.head.appendChild(tag);
@@ -94,6 +130,11 @@
         </div>
       </div>
       <div class="local-model-status">
+        <div class="local-gpu-guide" id="local-gpu-guide" hidden>
+          <strong id="local-gpu-title"></strong>
+          <p id="local-gpu-message"></p>
+          <code id="local-gpu-install" hidden></code>
+        </div>
         <div class="local-model-summary">
           <span id="local-model-summary">모델 폴더를 확인하는 중입니다.</span>
           <span>모델 파일은 Lecture Dub 서버로 복사되지 않습니다.</span>
@@ -123,6 +164,44 @@
     return `${provider} · ${model.name}${variant}`;
   }
 
+  function renderGpuGuide(acceleration) {
+    const guide = $("local-gpu-guide");
+    const title = $("local-gpu-title");
+    const message = $("local-gpu-message");
+    const install = $("local-gpu-install");
+    if (!guide || !title || !message || !install) return;
+
+    guide.hidden = false;
+    guide.classList.toggle("ready", Boolean(acceleration.ready));
+    if (!acceleration) {
+      title.textContent = "합성 가속 상태 확인 대기 중";
+      message.textContent = "서버를 다시 시작하면 GPU 또는 CPU 사용 상태를 확인해 안내합니다.";
+      install.hidden = true;
+      install.textContent = "";
+      return;
+    }
+    if (acceleration.ready) {
+      title.textContent = `GPU 가속 사용 가능 · ${acceleration.name}`;
+      message.textContent = `${acceleration.provider}로 Supertonic 3 합성을 GPU에서 실행합니다.`;
+      install.hidden = true;
+      install.textContent = "";
+      return;
+    }
+
+    if (acceleration.detected) {
+      title.textContent = `CPU 합성 중 · ${acceleration.name}`;
+      message.textContent = "GPU는 감지됐지만 가속 Runtime이 준비되지 않았습니다. 설치 후 서버를 다시 시작하면 GPU를 사용합니다.";
+      install.hidden = false;
+      install.textContent = acceleration.install || 'pip install -e ".[local-supertonic-gpu]"';
+      return;
+    }
+
+    title.textContent = "CPU 합성 모드";
+    message.textContent = "사용 가능한 GPU를 감지하지 못해 Supertonic 3을 CPU로 합성합니다.";
+    install.hidden = true;
+    install.textContent = "";
+  }
+
   function renderModels(payload) {
     state.payload = payload;
     const rootInput = $("local-model-root");
@@ -132,6 +211,7 @@
     if (!rootInput || !engineSelect || !modelSelect || !list) return;
 
     rootInput.value = payload.root || "";
+    renderGpuGuide(payload.acceleration);
     const models = Array.isArray(payload.models) ? payload.models : [];
     const ready = models.filter(model => model.ready);
     $("local-model-count").textContent = `${ready.length}개 사용 가능`;
@@ -211,7 +291,7 @@
   function setVoiceOptions(model) {
     const select = document.getElementById("select-voice");
     if (!select) return;
-    const previous = select.value;
+    const previous = state.voice || select.value;
     select.innerHTML = "";
 
     if (!model || state.engine === "edge") {
@@ -222,6 +302,8 @@
         select.appendChild(option);
       }
       select.value = edgeVoices.some(([value]) => value === previous) ? previous : edgeVoices[0][0];
+      state.voice = select.value;
+      publishSelection();
       return;
     }
 
@@ -238,6 +320,9 @@
       }
       select.appendChild(option);
     }
+    select.value = voices.includes(previous) ? previous : voices[0];
+    state.voice = select.value;
+    publishSelection();
   }
 
   async function refreshModels() {
@@ -324,6 +409,10 @@
       const model = (state.payload?.models || []).find(item => item.id === state.modelId);
       setVoiceOptions(model);
     });
+    document.getElementById("select-voice").addEventListener("change", event => {
+      state.voice = event.target.value;
+      publishSelection();
+    });
     $("local-root-save").addEventListener("click", saveRoot);
     $("local-root-pick").addEventListener("click", pickRoot);
     $("local-root-scan").addEventListener("click", refreshModels);
@@ -342,6 +431,17 @@
     patchFetch();
     refreshModels();
   }
+
+  window.addEventListener("lecture-dub-reset", () => {
+    try {
+      localStorage.removeItem(TTS_SELECTION_KEY);
+    } catch { /* silent */ }
+    state.engine = "edge";
+    state.modelId = "";
+    state.voice = "";
+    if (state.payload) renderModels(state.payload);
+    else publishSelection();
+  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init, { once: true });
