@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
 
             print(f"Lecture Dub 웹 앱을 시작합니다: http://{args.host}:{args.port}")
             uvicorn.run(
-                "lecture_dub.server_local:app",
+                "lecture_dub.server_quality:app",
                 host=args.host,
                 port=args.port,
                 log_level="info",
