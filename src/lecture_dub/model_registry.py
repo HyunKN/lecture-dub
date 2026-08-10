@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 import platform
+import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -304,4 +305,52 @@ def runtime_summary() -> dict[str, Any]:
             "server_url": server_url,
             "install": "fish-speech를 Linux/WSL/Docker에서 실행한 뒤 FISH_SPEECH_URL을 설정하거나 editable 설치",
         },
+    }
+
+
+def gpu_acceleration_summary() -> dict[str, Any]:
+    gpu_name = ""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            gpu_name = next((line.strip() for line in result.stdout.splitlines() if line.strip()), "")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    if not gpu_name and platform.system() == "Windows":
+        try:
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join '\n'"],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0:
+                gpu_name = next((line.strip() for line in result.stdout.splitlines() if line.strip()), "")
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+    try:
+        import onnxruntime as ort
+
+        providers = ort.get_available_providers()
+    except ImportError:
+        providers = []
+
+    provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else (
+        "DmlExecutionProvider" if "DmlExecutionProvider" in providers else ""
+    )
+    return {
+        "detected": bool(gpu_name),
+        "name": gpu_name,
+        "provider": provider,
+        "ready": bool(provider),
+        "install": 'pip uninstall onnxruntime\npip install -e ".[local-supertonic-gpu]"',
     }

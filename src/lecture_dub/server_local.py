@@ -4,15 +4,17 @@ import asyncio
 import json
 import re
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.background import BackgroundTask
 
 from .model_registry import (
     get_models_root,
+    gpu_acceleration_summary,
     runtime_summary,
     scan_models,
     set_models_root,
@@ -33,8 +35,35 @@ DEFAULT_MODELS_DIR = ROOT / "models"
 app = FastAPI(title="Lecture Dub")
 
 
-def _sse(data: dict) -> str:
-    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+@dataclass(slots=True)
+class SynthesisJob:
+    id: str
+    status: str = "running"
+    message: str = "TTS 생성 작업 준비 중..."
+    stage: str = ""
+    current: int = 0
+    total: int = 0
+    percent: int = 0
+    wav: dict[str, str] | None = None
+    error: str = ""
+    task: asyncio.Task[None] | None = None
+
+
+_SYNTH_JOBS: dict[str, SynthesisJob] = {}
+
+
+def _job_payload(job: SynthesisJob) -> dict:
+    return {
+        "id": job.id,
+        "status": job.status,
+        "message": job.message,
+        "stage": job.stage,
+        "current": job.current,
+        "total": job.total,
+        "percent": job.percent,
+        "wav": job.wav,
+        "error": job.error,
+    }
 
 
 def _models_root() -> Path:
@@ -49,13 +78,14 @@ def _model_payload() -> dict:
         "exists": root.is_dir(),
         "models": [model.to_dict() for model in models],
         "runtimes": runtime_summary(),
+        "acceleration": gpu_acceleration_summary(),
     }
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> HTMLResponse:
     html = (WEB_DIR / "app.html").read_text(encoding="utf-8")
-    injection = '<script src="/web/local-models.js"></script>\n'
+    injection = '<script src="/web/local-models.js?v=20260809-3"></script>\n'
     if injection not in html:
         html = html.replace("</body>", f"  {injection}</body>")
     return HTMLResponse(html)
@@ -176,80 +206,53 @@ async def synthesize(request: Request):
 
     output_wav = _resolve_output(vtt_path, custom_output_name)
 
-    async def stream() -> AsyncGenerator[str, None]:
-        yield _sse({"type": "status", "message": "VTT 파일을 읽는 중..."})
+    job = SynthesisJob(id=uuid4().hex)
+    _SYNTH_JOBS[job.id] = job
+
+    async def run_synth() -> None:
         try:
             cues = load_vtt(vtt_path)
-            yield _sse({
-                "type": "status",
-                "message": f"{len(cues)}개 자막 구간을 불러왔습니다. {engine} 합성을 시작합니다...",
-            })
-
-            progress_queue: asyncio.Queue[dict] = asyncio.Queue()
-            done_event = asyncio.Event()
-            error_holder: list[Exception] = []
-            last_sent = {"key": ("", -1)}
+            job.message = f"{len(cues)}개 자막 구간을 불러왔습니다. {engine} 합성을 시작합니다..."
 
             def progress(stage: str, current: int, total: int) -> None:
-                percent = int(current / total * 100) if total else 0
-                key = (stage, percent)
-                previous_stage, previous_percent = last_sent["key"]
-                if stage != previous_stage or percent - previous_percent >= 3 or current >= total:
-                    last_sent["key"] = key
-                    try:
-                        progress_queue.put_nowait({
-                            "type": "progress",
-                            "stage": stage,
-                            "current": current,
-                            "total": total,
-                            "percent": percent,
-                        })
-                    except asyncio.QueueFull:
-                        pass
+                job.stage = stage
+                job.current = current
+                job.total = total
+                job.percent = int(current / total * 100) if total else 0
+                job.message = f"{stage} ({current}/{total})"
 
-            async def run_synth() -> None:
-                try:
-                    await synthesize_timeline_with_provider(
-                        cues,
-                        output=output_wav,
-                        selection=ProviderSelection(
-                            engine=engine,
-                            model_id=model_id,
-                            voice=voice,
-                            rate=rate,
-                        ),
-                        models_root=_models_root(),
-                        keep_segments=False,
-                        progress=progress,
-                    )
-                except Exception as exc:
-                    error_holder.append(exc)
-                finally:
-                    done_event.set()
-
-            task = asyncio.create_task(run_synth())
-            while not done_event.is_set():
-                try:
-                    yield _sse(await asyncio.wait_for(progress_queue.get(), timeout=0.5))
-                except asyncio.TimeoutError:
-                    pass
-
-            while not progress_queue.empty():
-                yield _sse(progress_queue.get_nowait())
-            await task
-
-            if error_holder:
-                yield _sse({"type": "error", "message": f"합성 실패: {error_holder[0]}"})
-            else:
-                yield _sse({
-                    "type": "complete",
-                    "message": "한국어 음성 합성이 완료되었습니다.",
-                    "wav": {"name": output_wav.name, "path": f"ko/{output_wav.name}"},
-                })
+            await synthesize_timeline_with_provider(
+                cues,
+                output=output_wav,
+                selection=ProviderSelection(
+                    engine=engine,
+                    model_id=model_id,
+                    voice=voice,
+                    rate=rate,
+                ),
+                models_root=_models_root(),
+                keep_segments=False,
+                progress=progress,
+            )
+            job.status = "complete"
+            job.percent = 100
+            job.message = "한국어 음성 합성이 완료되었습니다."
+            job.wav = {"name": output_wav.name, "path": f"ko/{output_wav.name}"}
         except Exception as exc:
-            yield _sse({"type": "error", "message": f"합성 실패: {exc}"})
+            job.status = "error"
+            job.error = f"합성 실패: {exc}"
+            job.message = job.error
 
-    return StreamingResponse(stream(), media_type="text/event-stream")
+    job.task = asyncio.create_task(run_synth())
+    return JSONResponse(_job_payload(job), status_code=202)
+
+
+@app.get("/api/synthesize/{job_id}")
+async def synthesize_status(job_id: str):
+    job = _SYNTH_JOBS.get(job_id)
+    if job is None:
+        return JSONResponse({"error": "합성 작업을 찾을 수 없습니다. 서버가 재시작됐을 수 있습니다."}, status_code=404)
+    return _job_payload(job)
 
 
 # Keep every existing route/static asset unchanged. The local-model routes above are

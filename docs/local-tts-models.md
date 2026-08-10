@@ -94,6 +94,16 @@ D:\AI\Models\Qwen3-TTS-12Hz-1.7B-CustomVoice\
 pip install -e ".[local-supertonic]"
 ```
 
+Windows에서 NVIDIA GPU를 사용하려면 DirectML Runtime을 설치합니다. 이 환경에서는 CUDA/cuDNN 조합보다 DirectML 경로가 Supertonic 3 실제 합성까지 검증되었습니다. Supertonic이 `onnxruntime`를 의존하므로 두 패키지를 함께 둔 상태는 지원하지 않습니다.
+
+```powershell
+pip install -e ".[local-supertonic]"
+pip uninstall onnxruntime
+pip install -e ".[local-supertonic-gpu]"
+```
+
+Lecture Dub은 `onnxruntime.get_available_providers()`에 `CUDAExecutionProvider`가 있으면 CUDA를 먼저 요청하고, Windows에서는 `DmlExecutionProvider`를 GPU fallback으로 사용합니다. GPU provider가 없으면 CPU fallback을 로그로 알립니다.
+
 모델 폴더에는 최소한 다음 구조가 있어야 합니다.
 
 ```text

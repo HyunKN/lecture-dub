@@ -28,3 +28,16 @@ def test_index_injects_local_model_ui_script() -> None:
 
     assert '/web/local-models.js' in body
     assert '/web/app.js' in body
+
+
+def test_model_payload_includes_acceleration_summary(monkeypatch) -> None:
+    monkeypatch.setattr(server_local, "gpu_acceleration_summary", lambda: {
+        "detected": True,
+        "name": "Test GPU",
+        "provider": "DmlExecutionProvider",
+        "ready": True,
+        "install": "install command",
+    })
+    payload = server_local._model_payload()
+    assert payload["acceleration"]["ready"] is True
+    assert payload["acceleration"]["provider"] == "DmlExecutionProvider"

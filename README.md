@@ -164,6 +164,16 @@ Supertonic 3만 사용:
 pip install -e ".[local-supertonic]"
 ```
 
+Windows에서 NVIDIA GPU를 사용하려면 DirectML Runtime을 설치합니다. 이 환경에서는 CUDA/cuDNN 조합보다 DirectML 경로가 Supertonic 3 실제 합성까지 검증되었습니다. Supertonic의 CPU 런타임 의존성과 충돌할 수 있으므로 아래 명령으로 CPU 패키지를 GPU Runtime으로 교체한 뒤 실행하세요.
+
+```powershell
+pip install -e ".[local-supertonic]"
+pip uninstall onnxruntime
+pip install -e ".[local-supertonic-gpu]"
+```
+
+CUDA provider가 정상 동작하면 CUDA를 우선 사용하고, 그 외 Windows GPU에서는 DirectML을 사용합니다. GPU provider를 찾지 못하면 서버 로그에 CPU fallback 사유가 기록됩니다.
+
 둘 다 사용:
 
 ```powershell

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -13,7 +14,7 @@ import urllib.request
 import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Collection
 
 from . import audio as audio_mod
 from .model_registry import LocalModel, scan_models
@@ -33,6 +34,7 @@ class ProviderSelection:
 _QWEN_CACHE: dict[str, Any] = {}
 _SUPERTONIC_CACHE: dict[str, Any] = {}
 _FISH_SERVERS: dict[str, tuple[subprocess.Popen, str]] = {}
+LOGGER = logging.getLogger(__name__)
 
 
 def _rate_multiplier(rate: str) -> float:
@@ -112,6 +114,55 @@ async def _qwen_generate(model: LocalModel, text: str, output: Path, voice: str)
     await asyncio.to_thread(_qwen_generate_sync, model, text, output, voice)
 
 
+def _supertonic_onnx_providers(available_providers: Collection[str]) -> tuple[str, ...]:
+    if "CUDAExecutionProvider" in available_providers:
+        return ("CUDAExecutionProvider", "CPUExecutionProvider")
+    if "DmlExecutionProvider" in available_providers:
+        return ("DmlExecutionProvider", "CPUExecutionProvider")
+    return ("CPUExecutionProvider",)
+
+
+def _configure_supertonic_onnx_providers(
+    onnxruntime_module: Any | None = None,
+    loader_module: Any | None = None,
+) -> str:
+    if onnxruntime_module is None:
+        import onnxruntime as onnxruntime_module
+    if loader_module is None:
+        import supertonic.loader as loader_module
+
+    providers = _supertonic_onnx_providers(onnxruntime_module.get_available_providers())
+    preload_dlls = getattr(onnxruntime_module, "preload_dlls", None)
+    if providers[0] == "CUDAExecutionProvider" and callable(preload_dlls):
+        try:
+            preload_dlls(directory="")
+        except Exception as exc:
+            LOGGER.warning("Supertonic 3 CUDA DLL preload failed: %s", exc)
+    loader_module.DEFAULT_ONNX_PROVIDERS = list(providers)
+    if providers[0] == "CUDAExecutionProvider":
+        LOGGER.info("Supertonic 3 ONNX Runtime: CUDAExecutionProvider를 우선 사용합니다.")
+    elif providers[0] == "DmlExecutionProvider":
+        LOGGER.info("Supertonic 3 ONNX Runtime: DmlExecutionProvider를 사용합니다.")
+    else:
+        LOGGER.warning(
+            "Supertonic 3 ONNX Runtime: 사용 가능한 GPU provider를 찾지 못해 CPUExecutionProvider로 fallback합니다. "
+            "Windows에서는 onnxruntime-directml을 설치해 GPU를 사용할 수 있습니다."
+        )
+    return providers[0]
+
+
+def _supertonic_active_providers(tts: Any) -> tuple[tuple[str, ...], ...]:
+    return tuple(
+        tuple(session.get_providers())
+        for session in (
+            tts.model.dp_ort,
+            tts.model.text_enc_ort,
+            tts.model.vector_est_ort,
+            tts.model.vocoder_ort,
+        )
+    )
+
+
 def _load_supertonic(model: LocalModel):
     cached = _SUPERTONIC_CACHE.get(model.path)
     if cached is not None:
@@ -122,6 +173,7 @@ def _load_supertonic(model: LocalModel):
     except ImportError as exc:
         raise RuntimeError("Supertonic 3를 사용하려면 `pip install -e \".[local-supertonic]\"`가 필요합니다.") from exc
 
+    requested_provider = _configure_supertonic_onnx_providers()
     previous = os.environ.get("SUPERTONIC_CACHE_DIR")
     os.environ["SUPERTONIC_CACHE_DIR"] = model.path
     try:
@@ -131,6 +183,13 @@ def _load_supertonic(model: LocalModel):
             os.environ.pop("SUPERTONIC_CACHE_DIR", None)
         else:
             os.environ["SUPERTONIC_CACHE_DIR"] = previous
+    active_providers = _supertonic_active_providers(tts)
+    if requested_provider != "CPUExecutionProvider" and all(
+        providers and providers[0] == requested_provider for providers in active_providers
+    ):
+        LOGGER.info("Supertonic 3 GPU active (%s): %s", requested_provider, active_providers)
+    elif requested_provider != "CPUExecutionProvider":
+        LOGGER.warning("Supertonic 3 GPU 요청이 CPU fallback으로 전환됐습니다: %s", active_providers)
     _SUPERTONIC_CACHE[model.path] = tts
     return tts
 
