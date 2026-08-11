@@ -1,12 +1,10 @@
-/* subtitle-quality.js — translation/TTS-oriented subtitle recommendation UI */
+/* subtitle-quality.js — compact recommendation UI scoped to the current YouTube video */
 (function () {
   "use strict";
 
   const state = {
-    payload: null,
-    rawVisible: false,
     refreshTimer: null,
-    rendering: false,
+    lastVideoId: "",
   };
 
   function escapeHtml(value) {
@@ -29,51 +27,47 @@
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  function lectureLabel(name) {
-    return String(name || "")
-      .replace(/\.en-orig\.vtt$/i, "")
-      .replace(/\.en(?:-[A-Za-z0-9-]+)?\.vtt$/i, "")
-      .replace(/\.vtt$/i, "");
-  }
+  function currentVideoId() {
+    const raw = document.getElementById("url-input")?.value?.trim() || "";
+    if (!raw) return "";
 
-  function stepRoot() {
-    const direct = document.getElementById("step-translate");
-    if (direct) return direct;
-    return [...document.querySelectorAll("section, main, div")].find(element =>
-      element.textContent?.includes("한국어 자막 번역") &&
-      element.textContent?.includes("추출된 영어 자막 파일")
-    ) || null;
-  }
-
-  function rawHeading(root) {
-    if (!root) return null;
-    const candidates = [...root.querySelectorAll("strong, h3, h4, p, div, span")];
-    return candidates.find(element => {
-      if (element.closest("#subtitle-quality-panel")) return false;
-      const text = element.textContent?.trim() || "";
-      return text === "추출된 영어 자막 파일:" || text === "추출된 영어 자막 파일";
-    }) || null;
-  }
-
-  function sourceElements(root, names) {
-    if (!root) return [];
-    const wanted = new Set(names);
-    return [...root.querySelectorAll("a, button")].filter(element => {
-      if (element.closest("#subtitle-quality-panel")) return false;
-      const text = element.textContent?.trim() || "";
-      for (const name of wanted) {
-        if (text.includes(name)) return true;
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.toLowerCase().replace(/^www\./, "");
+      if (host === "youtu.be") return url.pathname.split("/").filter(Boolean)[0] || "";
+      if (host.endsWith("youtube.com")) {
+        const queryId = url.searchParams.get("v");
+        if (queryId) return queryId;
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (["shorts", "embed", "live"].includes(parts[0])) return parts[1] || "";
       }
-      return false;
-    });
+    } catch {
+      return "";
+    }
+    return "";
   }
 
-  function findSourceElement(name) {
-    const root = stepRoot() || document;
-    return [...root.querySelectorAll("a, button")].find(element =>
-      !element.closest("#subtitle-quality-panel") &&
-      (element.textContent?.trim() || "").includes(name)
-    ) || null;
+  function sourceRow() {
+    return document.getElementById("en-files-chips")?.closest(".files-preview-row") || null;
+  }
+
+  function ensurePanel() {
+    let panel = document.getElementById("subtitle-quality-panel");
+    if (panel) return panel;
+
+    const row = sourceRow();
+    if (!row) return null;
+
+    panel = document.createElement("section");
+    panel.id = "subtitle-quality-panel";
+    row.parentElement?.insertBefore(panel, row);
+    row.hidden = true;
+    return panel;
+  }
+
+  function hideLegacyList() {
+    const row = sourceRow();
+    if (row) row.hidden = true;
   }
 
   function style() {
@@ -81,220 +75,151 @@
     const tag = document.createElement("style");
     tag.id = "subtitle-quality-style";
     tag.textContent = `
-      #subtitle-quality-panel { margin: 18px 0; padding: 16px; border: 1px solid var(--border-light, #34363a); border-radius: 14px; background: rgba(22,23,25,.72); }
-      .sq-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px; }
-      .sq-head h3 { margin:0 0 5px; font-size:14px; }
-      .sq-head p { margin:0; color:var(--text-secondary,#a5a8ad); font-size:11px; line-height:1.55; }
-      .sq-head-actions { display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
-      .sq-btn { min-height:34px; padding:0 10px; border:1px solid var(--border-light,#3a3c40); border-radius:9px; background:var(--surface,#202124); color:inherit; cursor:pointer; font:inherit; font-size:11px; font-weight:700; }
-      .sq-groups { display:grid; gap:12px; }
-      .sq-card { padding:13px; border:1px solid var(--border-light,#34363a); border-radius:11px; background:rgba(11,12,13,.48); }
-      .sq-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-      .sq-title { min-width:0; }
-      .sq-title strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
-      .sq-title span { display:block; margin-top:4px; color:var(--text-secondary,#999da3); font-size:10px; }
+      #subtitle-quality-panel { margin:16px 0 18px; }
+      .sq-box { padding:14px; border:1px solid var(--border-light,#34363a); border-radius:12px; background:rgba(18,19,21,.58); }
+      .sq-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+      .sq-heading { min-width:0; }
+      .sq-heading strong { display:block; font-size:13px; }
+      .sq-heading span { display:block; margin-top:3px; color:var(--text-secondary,#9ca3af); font-size:10px; }
       .sq-score { flex:0 0 auto; padding:5px 9px; border:1px solid #27764a; border-radius:999px; color:#8ee2af; font-size:10px; font-weight:800; }
-      .sq-file-row { display:flex; align-items:center; gap:8px; margin-top:11px; }
-      .sq-file { flex:1; min-width:0; padding:9px 10px; border:1px solid var(--border-light,#3a3c40); border-radius:9px; background:rgba(255,255,255,.035); }
+      .sq-file-row { display:flex; align-items:center; gap:9px; }
+      .sq-file { flex:1; min-width:0; padding:9px 10px; border:1px solid var(--border-light,#383a3f); border-radius:9px; background:rgba(255,255,255,.03); }
       .sq-file-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:750; }
-      .sq-file-meta { margin-top:4px; color:var(--text-secondary,#92969b); font-size:9px; }
-      .sq-use { flex:0 0 auto; min-height:38px; padding:0 11px; border:1px solid #357b52; border-radius:9px; background:rgba(42,116,73,.15); color:#9be5b8; cursor:pointer; font:inherit; font-size:10px; font-weight:800; }
-      .sq-reasons { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
-      .sq-reason, .sq-warning { padding:4px 7px; border-radius:999px; font-size:9px; line-height:1.2; }
-      .sq-reason { background:rgba(42,116,73,.12); color:#9fddb6; border:1px solid rgba(78,151,105,.35); }
-      .sq-warning { background:rgba(166,112,35,.12); color:#e0bd82; border:1px solid rgba(184,132,55,.34); }
-      .sq-details { margin-top:10px; border-top:1px solid var(--border-light,#303236); padding-top:9px; }
-      .sq-details summary { cursor:pointer; color:var(--text-secondary,#aaaeb3); font-size:10px; font-weight:700; }
+      .sq-meta { margin-top:4px; color:var(--text-secondary,#92969b); font-size:9px; }
+      .sq-download { flex:0 0 auto; display:inline-flex; align-items:center; min-height:38px; padding:0 11px; border:1px solid #357b52; border-radius:9px; background:rgba(42,116,73,.13); color:#9be5b8; text-decoration:none; font-size:10px; font-weight:800; }
+      .sq-details { margin-top:9px; padding-top:8px; border-top:1px solid var(--border-light,#303236); }
+      .sq-details summary { cursor:pointer; color:var(--text-secondary,#a7abb0); font-size:10px; font-weight:700; }
+      .sq-reasons { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+      .sq-reason,.sq-warning { padding:4px 7px; border-radius:999px; font-size:9px; }
+      .sq-reason { color:#9fddb6; border:1px solid rgba(78,151,105,.35); background:rgba(42,116,73,.1); }
+      .sq-warning { color:#e0bd82; border:1px solid rgba(184,132,55,.34); background:rgba(166,112,35,.1); }
       .sq-alt-list { display:grid; gap:7px; margin-top:8px; }
-      .sq-alt { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding:8px 9px; border:1px solid var(--border-light,#303236); border-radius:8px; }
+      .sq-alt { display:flex; align-items:center; gap:8px; padding:7px 8px; border:1px solid var(--border-light,#303236); border-radius:8px; }
+      .sq-alt-copy { flex:1; min-width:0; }
       .sq-alt-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; font-weight:700; }
-      .sq-alt-meta { margin-top:3px; color:var(--text-secondary,#8e9297); font-size:9px; }
-      .sq-alt button { min-height:30px; padding:0 8px; border:1px solid var(--border-light,#3b3d42); border-radius:7px; background:transparent; color:inherit; cursor:pointer; font:inherit; font-size:9px; }
-      .sq-empty, .sq-error { padding:12px; border:1px dashed var(--border-light,#3b3d42); border-radius:9px; color:var(--text-secondary,#a2a5aa); font-size:11px; }
+      .sq-alt-meta { margin-top:2px; color:var(--text-secondary,#8e9297); font-size:9px; }
+      .sq-alt a { flex:0 0 auto; color:inherit; font-size:9px; font-weight:700; text-decoration:none; }
+      .sq-empty { padding:11px 12px; border:1px dashed var(--border-light,#3b3d42); border-radius:10px; color:var(--text-secondary,#a2a5aa); font-size:11px; }
       .sq-error { color:#e3a19a; }
-      @media (max-width: 760px) { .sq-head, .sq-card-head, .sq-file-row { flex-direction:column; } .sq-head-actions, .sq-use { width:100%; } .sq-btn, .sq-use { width:100%; } }
+      @media (max-width:760px) { .sq-top,.sq-file-row { align-items:flex-start; flex-direction:column; } .sq-download { width:100%; justify-content:center; } }
     `;
     document.head.appendChild(tag);
   }
 
-  function ensurePanel() {
-    const root = stepRoot();
-    if (!root) return null;
-    let panel = document.getElementById("subtitle-quality-panel");
-    if (panel) return panel;
+  function downloadHref(path) {
+    return `/api/files/${String(path || "").split("/").map(encodeURIComponent).join("/")}`;
+  }
 
-    panel = document.createElement("section");
-    panel.id = "subtitle-quality-panel";
-    const heading = rawHeading(root);
-    if (heading) {
-      const parent = heading.parentElement;
-      parent?.parentElement?.insertBefore(panel, parent);
-    } else {
-      root.appendChild(panel);
+  function recommendationReason(file) {
+    if ((file.duplicate_ratio || 0) < 0.08 && (file.inline_timestamp_ratio || 0) < 0.05) {
+      return "중복과 불필요한 단어 타임코드가 적어 번역/TTS에 적합합니다.";
     }
-    return panel;
+    return "같은 영상의 영어 자막 중 품질 점수가 가장 높습니다.";
   }
 
-  function setRawVisible(visible) {
-    state.rawVisible = visible;
-    const root = stepRoot();
-    const files = state.payload?.files || [];
-    const names = files.map(file => file.name);
-    const elements = sourceElements(root, names);
-    for (const element of elements) element.hidden = !visible;
-    const heading = rawHeading(root);
-    if (heading) heading.hidden = !visible;
-
-    const button = document.getElementById("sq-toggle-raw");
-    if (button) button.textContent = visible ? "기존 전체 목록 숨기기" : `기존 전체 목록 보기 (${elements.length})`;
-  }
-
-  function clickOriginal(name) {
-    const source = findSourceElement(name);
-    if (source) {
-      source.click();
-      return;
-    }
-    setRawVisible(true);
-  }
-
-  function renderFile(file, recommended) {
-    const reasons = (file.reasons || []).map(reason => `<span class="sq-reason">✓ ${escapeHtml(reason)}</span>`).join("");
-    const warnings = (file.warnings || []).map(reason => `<span class="sq-warning">! ${escapeHtml(reason)}</span>`).join("");
-    return `
-      <div class="sq-file-row">
-        <div class="sq-file">
-          <div class="sq-file-name">${escapeHtml(file.name)}</div>
-          <div class="sq-file-meta">${fileSize(file.size_bytes)} · ${Number(file.cue_count || 0).toLocaleString()} cues · 중복 ${percent(file.duplicate_ratio)} · inline timestamp ${percent(file.inline_timestamp_ratio)}</div>
-        </div>
-        <button class="sq-use" type="button" data-sq-file="${escapeHtml(file.name)}">${recommended ? "추천 자막 받기" : "이 파일 받기"}</button>
-      </div>
-      <div class="sq-reasons">${reasons}${warnings}</div>
-    `;
-  }
-
-  function groupOrder(files) {
-    const root = stepRoot();
-    const source = sourceElements(root, files.map(file => file.name));
-    const order = new Map();
-    source.forEach((element, index) => {
-      const text = element.textContent || "";
-      const file = files.find(item => text.includes(item.name));
-      if (file && !order.has(file.group)) order.set(file.group, index);
-    });
-    return order;
+  function renderWaiting(message) {
+    const panel = ensurePanel();
+    if (!panel) return;
+    hideLegacyList();
+    panel.innerHTML = `<div class="sq-empty">${escapeHtml(message)}</div>`;
   }
 
   function render(payload) {
-    state.rendering = true;
-    state.payload = payload;
     const panel = ensurePanel();
-    if (!panel) {
-      state.rendering = false;
+    if (!panel) return;
+    hideLegacyList();
+
+    const files = Array.isArray(payload.files) ? payload.files : [];
+    if (!files.length) {
+      renderWaiting("현재 영상에서 분석할 영어 VTT가 없습니다. 먼저 자막을 추출하세요.");
       return;
     }
 
-    const files = Array.isArray(payload.files) ? payload.files : [];
-    const grouped = new Map();
-    for (const file of files) {
-      if (!grouped.has(file.group)) grouped.set(file.group, []);
-      grouped.get(file.group).push(file);
-    }
+    const sorted = [...files].sort((a, b) => Number(b.recommended) - Number(a.recommended) || b.score - a.score);
+    const best = sorted.find(file => file.recommended) || sorted[0];
+    const alternatives = sorted.filter(file => file !== best);
 
-    const order = groupOrder(files);
-    const groups = [...grouped.entries()].sort((a, b) => {
-      const ai = order.has(a[0]) ? order.get(a[0]) : Number.MAX_SAFE_INTEGER;
-      const bi = order.has(b[0]) ? order.get(b[0]) : Number.MAX_SAFE_INTEGER;
-      if (ai !== bi) return ai - bi;
-      return String(a[0]).localeCompare(String(b[0]));
-    });
-
-    const cards = groups.map(([, groupFiles]) => {
-      const sorted = [...groupFiles].sort((a, b) => Number(b.recommended) - Number(a.recommended) || b.score - a.score);
-      const best = sorted.find(file => file.recommended) || sorted[0];
-      const alternatives = sorted.filter(file => file !== best);
-      const altHtml = alternatives.map(file => `
-        <div class="sq-alt">
-          <div>
-            <div class="sq-alt-name">${escapeHtml(file.name)}</div>
-            <div class="sq-alt-meta">${file.score}점 · ${fileSize(file.size_bytes)} · 중복 ${percent(file.duplicate_ratio)} · inline ${percent(file.inline_timestamp_ratio)}</div>
-          </div>
-          <button type="button" data-sq-file="${escapeHtml(file.name)}">받기</button>
-        </div>`).join("");
-
-      return `
-        <article class="sq-card">
-          <div class="sq-card-head">
-            <div class="sq-title">
-              <strong>${escapeHtml(lectureLabel(best.name))}</strong>
-              <span>파일명이 아니라 실제 VTT 내용을 검사해 번역/TTS 적합도를 계산했습니다.</span>
-            </div>
-            <span class="sq-score">추천 · ${best.score}점</span>
-          </div>
-          ${renderFile(best, true)}
-          ${alternatives.length ? `
-            <details class="sq-details">
-              <summary>다른 영어 자막 ${alternatives.length}개 보기</summary>
-              <div class="sq-alt-list">${altHtml}</div>
-            </details>` : ""}
-        </article>`;
-    }).join("");
+    const reasons = (best.reasons || []).map(reason => `<span class="sq-reason">✓ ${escapeHtml(reason)}</span>`).join("");
+    const warnings = (best.warnings || []).map(reason => `<span class="sq-warning">! ${escapeHtml(reason)}</span>`).join("");
+    const altHtml = alternatives.map(file => `
+      <div class="sq-alt">
+        <div class="sq-alt-copy">
+          <div class="sq-alt-name">${escapeHtml(file.name)}</div>
+          <div class="sq-alt-meta">${file.score}점 · ${fileSize(file.size_bytes)} · 중복 ${percent(file.duplicate_ratio)} · inline ${percent(file.inline_timestamp_ratio)}</div>
+        </div>
+        <a href="${downloadHref(file.path)}" download="${escapeHtml(file.name)}">받기</a>
+      </div>`).join("");
 
     panel.innerHTML = `
-      <div class="sq-head">
-        <div>
-          <h3>번역/TTS용 영어 자막 추천</h3>
-          <p>중복·rolling caption·단어 단위 타임코드·짧은 cue·비정상적인 크기와 길이를 함께 검사합니다. <strong>en-orig, en-US 같은 파일명 자체에는 가산점을 주지 않습니다.</strong></p>
+      <div class="sq-box">
+        <div class="sq-top">
+          <div class="sq-heading">
+            <strong>번역/TTS용 추천 자막</strong>
+            <span>${escapeHtml(recommendationReason(best))}</span>
+          </div>
+          <span class="sq-score">추천 · ${best.score}점</span>
         </div>
-        <div class="sq-head-actions">
-          <button class="sq-btn" id="sq-refresh" type="button">품질 다시 검사</button>
-          <button class="sq-btn" id="sq-toggle-raw" type="button">기존 전체 목록 보기</button>
+        <div class="sq-file-row">
+          <div class="sq-file">
+            <div class="sq-file-name">${escapeHtml(best.name)}</div>
+            <div class="sq-meta">${fileSize(best.size_bytes)} · ${Number(best.cue_count || 0).toLocaleString()} cues · 중복 ${percent(best.duplicate_ratio)} · inline ${percent(best.inline_timestamp_ratio)}</div>
+          </div>
+          <a class="sq-download" href="${downloadHref(best.path)}" download="${escapeHtml(best.name)}">추천 자막 받기</a>
         </div>
-      </div>
-      <div class="sq-groups">${cards || '<div class="sq-empty">분석할 영어 VTT가 없습니다. 먼저 영어 자막을 추출하세요.</div>'}</div>
-    `;
-
-    panel.querySelector("#sq-refresh")?.addEventListener("click", refresh);
-    panel.querySelector("#sq-toggle-raw")?.addEventListener("click", () => setRawVisible(!state.rawVisible));
-    panel.querySelectorAll("[data-sq-file]").forEach(button => {
-      button.addEventListener("click", () => clickOriginal(button.dataset.sqFile));
-    });
-
-    setRawVisible(false);
-    state.rendering = false;
+        ${(reasons || warnings) ? `
+          <details class="sq-details">
+            <summary>추천 근거 보기</summary>
+            <div class="sq-reasons">${reasons}${warnings}</div>
+          </details>` : ""}
+        ${alternatives.length ? `
+          <details class="sq-details">
+            <summary>다른 영어 자막 ${alternatives.length}개 보기</summary>
+            <div class="sq-alt-list">${altHtml}</div>
+          </details>` : ""}
+      </div>`;
   }
 
   async function refresh() {
+    const videoId = currentVideoId();
+    state.lastVideoId = videoId;
+
+    if (!videoId) {
+      renderWaiting("위의 YouTube URL을 입력하고 자막을 추출하면 추천 파일이 표시됩니다.");
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/subtitle-quality?t=${Date.now()}`, { cache: "no-store" });
+      const query = new URLSearchParams({ video_id: videoId, t: String(Date.now()) });
+      const response = await fetch(`/api/subtitle-quality?${query}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      if (videoId !== currentVideoId()) return;
       render(data);
     } catch (error) {
       const panel = ensurePanel();
-      if (panel) panel.innerHTML = `<div class="sq-error">자막 품질 분석 실패: ${escapeHtml(error.message)}</div>`;
+      if (panel) panel.innerHTML = `<div class="sq-empty sq-error">자막 품질 분석 실패: ${escapeHtml(error.message)}</div>`;
     }
   }
 
   function scheduleRefresh() {
-    if (state.rendering) return;
     clearTimeout(state.refreshTimer);
-    state.refreshTimer = setTimeout(refresh, 250);
+    state.refreshTimer = setTimeout(refresh, 180);
   }
 
   function init() {
     style();
+    hideLegacyList();
     refresh();
-    const root = stepRoot();
-    if (!root) return;
-    const observer = new MutationObserver(mutations => {
-      if (state.rendering) return;
-      const changedOutsidePanel = mutations.some(mutation =>
-        !mutation.target.closest?.("#subtitle-quality-panel")
-      );
-      if (changedOutsidePanel) scheduleRefresh();
-    });
-    observer.observe(root, { childList: true, subtree: true });
+
+    const urlInput = document.getElementById("url-input");
+    urlInput?.addEventListener("input", scheduleRefresh);
+    urlInput?.addEventListener("change", scheduleRefresh);
+
+    const source = document.getElementById("en-files-chips");
+    if (source) {
+      const observer = new MutationObserver(scheduleRefresh);
+      observer.observe(source, { childList: true, subtree: true });
+    }
   }
 
   if (document.readyState === "loading") {
