@@ -318,6 +318,38 @@
   color: #666;
 }
 
+#lecture-dub-extension-root .ld-file-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 17px 14px;
+  padding: 10px 0 0;
+  border-top: 1px solid rgba(0, 0, 0, .09);
+}
+
+#lecture-dub-extension-root .ld-file-summary span {
+  color: #666;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#lecture-dub-extension-root .ld-file-summary button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, .14);
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+#lecture-dub-extension-root .ld-file-summary button:hover {
+  border-color: rgba(0, 0, 0, .32);
+}
+
 #lecture-dub-extension-root .ld-footer {
   display: flex;
   align-items: center;

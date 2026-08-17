@@ -36,7 +36,7 @@
 
       <p class="ld-privacy">선택한 WAV/VTT는 이 탭에서만 읽으며 업로드하지 않습니다.</p>
 
-      <section class="ld-files" aria-label="더빙 파일 선택">
+      <section id="ld-files" class="ld-files" aria-label="더빙 파일 선택">
         <label class="ld-file">
           <span><b>한국어 더빙</b><em>필수</em></span>
           <small data-audio-name>WAV 파일을 선택하세요</small>
@@ -60,6 +60,17 @@
         <label class="ld-check"><input data-mute type="checkbox" checked> 원음 음소거</label>
       </section>
 
+      <section class="ld-captions" aria-live="polite" aria-label="현재 자막">
+        <div class="ld-caption ld-ko">
+          <span>한국어</span>
+          <p data-ko-caption>한국어 자막을 선택하면 현재 문장이 표시됩니다.</p>
+        </div>
+        <div class="ld-caption ld-en">
+          <span>English</span>
+          <p data-en-caption>영어 자막을 선택하면 원문이 함께 표시됩니다.</p>
+        </div>
+      </section>
+
       <section class="ld-volume" aria-label="더빙 음량">
         <div><span>더빙 음량</span><output data-volume-value>100%</output></div>
         <input data-volume type="range" min="0" max="100" value="100" step="1">
@@ -78,15 +89,9 @@
         </div>
       </section>
 
-      <section class="ld-captions" aria-live="polite">
-        <div class="ld-caption ld-ko">
-          <span>한국어</span>
-          <p data-ko-caption>한국어 자막을 선택하면 현재 문장이 표시됩니다.</p>
-        </div>
-        <div class="ld-caption ld-en">
-          <span>English</span>
-          <p data-en-caption>영어 자막을 선택하면 원문이 함께 표시됩니다.</p>
-        </div>
+      <section class="ld-file-summary" hidden aria-label="선택한 파일">
+        <span data-file-summary>파일 3개 준비됨</span>
+        <button data-file-change type="button" aria-expanded="false" aria-controls="ld-files">파일 변경</button>
       </section>
 
       <footer class="ld-footer">
@@ -102,6 +107,12 @@
     launcher: $(".ld-launcher"),
     panel: $(".ld-panel"),
     close: $(".ld-close"),
+    files: $(".ld-files"),
+    actions: $(".ld-actions"),
+    fileSummary: $(".ld-file-summary"),
+    fileSummaryText: $("[data-file-summary]"),
+    fileChange: $("[data-file-change]"),
+    footer: $(".ld-footer"),
     audioFile: $("[data-audio-file]"),
     koFile: $("[data-ko-file]"),
     enFile: $("[data-en-file]"),
@@ -128,6 +139,29 @@
   function setPanelOpen(open) {
     ui.panel.hidden = !open;
     ui.launcher.setAttribute("aria-expanded", String(open));
+  }
+
+  function selectedFileCount() {
+    return Number(state.audioLoaded) + Number(state.koCues.length > 0) + Number(state.enCues.length > 0);
+  }
+
+  function updateFileLayout() {
+    const ready = state.audioLoaded;
+
+    if (!ready) {
+      ui.panel.insertBefore(ui.files, ui.actions);
+      ui.files.hidden = false;
+      ui.fileSummary.hidden = true;
+      ui.fileChange.setAttribute("aria-expanded", "false");
+      ui.fileChange.textContent = "파일 변경";
+      return;
+    }
+
+    ui.panel.insertBefore(ui.fileSummary, ui.footer);
+    ui.panel.insertBefore(ui.files, ui.footer);
+    ui.fileSummaryText.textContent = `파일 ${selectedFileCount()}/3 준비됨`;
+    ui.fileSummary.hidden = false;
+    ui.files.hidden = ui.fileChange.getAttribute("aria-expanded") !== "true";
   }
 
   function currentVideoKey() {
@@ -349,14 +383,22 @@
         state.enCues = cues;
         ui.enName.textContent = `${file.name} · ${cues.length}개`;
       }
+      updateFileLayout();
       setStatus(`${file.name}을 불러왔습니다.`);
     } catch (error) {
+      updateFileLayout();
       setStatus(`${file.name}을 읽지 못했습니다: ${error.message}`, true);
     }
   }
 
   ui.launcher.addEventListener("click", () => setPanelOpen(ui.panel.hidden));
   ui.close.addEventListener("click", () => setPanelOpen(false));
+  ui.fileChange.addEventListener("click", () => {
+    const expanded = ui.fileChange.getAttribute("aria-expanded") === "true";
+    ui.fileChange.setAttribute("aria-expanded", String(!expanded));
+    ui.fileChange.textContent = expanded ? "파일 변경" : "파일 선택 닫기";
+    ui.files.hidden = expanded;
+  });
 
   ui.audioFile.addEventListener("change", () => {
     const file = ui.audioFile.files?.[0];
@@ -369,6 +411,7 @@
     state.audio.load();
     ui.audioName.textContent = `${file.name} · 읽는 중`;
     ui.dubToggle.disabled = true;
+    updateFileLayout();
     setStatus("더빙 파일을 읽는 중입니다.");
   });
 
@@ -376,17 +419,29 @@
     state.audioLoaded = true;
     ui.audioName.textContent = `${ui.audioFile.files?.[0]?.name || "더빙 파일"} · ${formatTime(state.audio.duration)}`;
     ui.dubToggle.disabled = false;
+    updateFileLayout();
     setStatus("더빙 파일 준비 완료. '더빙 시작'을 누르세요.");
   });
 
   state.audio.addEventListener("error", () => {
     state.audioLoaded = false;
     ui.dubToggle.disabled = true;
+    updateFileLayout();
     setStatus("오디오 파일을 읽지 못했습니다. WAV 파일을 확인하세요.", true);
   });
 
-  ui.koFile.addEventListener("change", () => loadVttFile(ui.koFile.files?.[0], "ko"));
-  ui.enFile.addEventListener("change", () => loadVttFile(ui.enFile.files?.[0], "en"));
+  ui.koFile.addEventListener("change", () => {
+    state.koCues = [];
+    ui.koName.textContent = "읽는 중";
+    updateFileLayout();
+    loadVttFile(ui.koFile.files?.[0], "ko");
+  });
+  ui.enFile.addEventListener("change", () => {
+    state.enCues = [];
+    ui.enName.textContent = "읽는 중";
+    updateFileLayout();
+    loadVttFile(ui.enFile.files?.[0], "en");
+  });
 
   ui.dubToggle.addEventListener("click", () => setDubEnabled(!state.enabled));
   ui.sync.addEventListener("change", () => {
