@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.background import BackgroundTask
 
+from .audio import missing_ffmpeg_tools
 from .model_registry import (
     get_models_root,
     gpu_acceleration_summary,
@@ -89,6 +90,24 @@ async def index() -> HTMLResponse:
     if injection not in html:
         html = html.replace("</body>", f"  {injection}</body>")
     return HTMLResponse(html)
+
+
+@app.get("/api/system/ffmpeg")
+async def ffmpeg_status():
+    """Inspect dependencies in the same process that runs synthesis."""
+    missing = missing_ffmpeg_tools()
+    return {
+        "ready": not missing,
+        "missing": missing,
+        "message": (
+            "FFmpeg가 준비되었습니다."
+            if not missing
+            else "FFmpeg 또는 FFprobe를 찾을 수 없습니다 ("
+            + ", ".join(missing)
+            + "). 설치 후 새 터미널에서 서버를 재시작하세요."
+        ),
+        "install_command": "winget install --id Gyan.FFmpeg -e",
+    }
 
 
 @app.get("/api/models")
@@ -203,6 +222,21 @@ async def synthesize(request: Request):
         return JSONResponse({"error": "VTT 파일을 찾을 수 없습니다."}, status_code=400)
     if engine != "edge" and not model_id:
         return JSONResponse({"error": "로컬 TTS 모델을 선택해 주세요."}, status_code=400)
+
+    missing = missing_ffmpeg_tools()
+    if missing:
+        return JSONResponse(
+            {
+                "error": (
+                    "FFmpeg 또는 FFprobe를 찾을 수 없습니다 ("
+                    + ", ".join(missing)
+                    + "). 설치 후 서버를 재시작하세요."
+                ),
+                "missing": missing,
+                "install_command": "winget install --id Gyan.FFmpeg -e",
+            },
+            status_code=503,
+        )
 
     output_wav = _resolve_output(vtt_path, custom_output_name)
 

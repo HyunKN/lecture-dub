@@ -14,11 +14,19 @@ CHANNELS = 1
 SAMPLE_WIDTH = 2
 
 
+def missing_ffmpeg_tools() -> list[str]:
+    """Return missing FFmpeg executables in the current server process PATH."""
+    return [name for name in ("ffmpeg", "ffprobe") if shutil.which(name) is None]
+
+
 def require_ffmpeg() -> None:
-    missing = [name for name in ("ffmpeg", "ffprobe") if shutil.which(name) is None]
+    missing = missing_ffmpeg_tools()
     if missing:
         raise RuntimeError(
-            "FFmpeg is required but not available on PATH: " + ", ".join(missing)
+            "FFmpeg 도구를 찾을 수 없습니다: "
+            + ", ".join(missing)
+            + ". Windows: winget install --id Gyan.FFmpeg -e. "
+            "설치 후 새 터미널에서 Lecture Dub 서버를 다시 실행하세요."
         )
 
 

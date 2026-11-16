@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .audio import synthesize_timeline
+from .audio import missing_ffmpeg_tools, synthesize_timeline
 from .extract import extract_english_subtitles
 from .subtitles import load_vtt
 
@@ -80,6 +80,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "serve":
             import uvicorn
 
+            missing = missing_ffmpeg_tools()
+            if missing:
+                print(
+                    "경고: FFmpeg 도구를 찾을 수 없습니다 ("
+                    + ", ".join(missing)
+                    + "). Windows에서는 winget install --id Gyan.FFmpeg -e "
+                    "실행 후 새 터미널에서 서버를 재시작하세요.",
+                    file=sys.stderr,
+                )
             print(f"Lecture Dub 웹 앱을 시작합니다: http://{args.host}:{args.port}")
             uvicorn.run(
                 "lecture_dub.server_quality:app",
