@@ -2,6 +2,8 @@
 
 Lecture Dub은 TTS 모델 가중치를 저장소에 포함하지 않습니다. 사용자가 모델을 원하는 위치에 내려받고, Web UI에서 **상위 모델 폴더 하나만 등록**하면 하위 폴더를 검색해 지원 모델을 자동으로 찾습니다.
 
+> Windows에서 `서버_실행.bat`를 처음 실행하면 `.venv`가 자동 생성됩니다. 아래 Python 패키지 설치 명령은 **해당 가상환경의 Python**을 사용하므로 `venv`를 활성화할 필요가 없습니다. Python 3.11~3.13을 권장하며, 로컬 모델별 의존성에 따라 호환 버전이 달라질 수 있습니다.
+
 ## 지원 모델
 
 | 모델 | Lecture Dub 연동 | 실행 환경 |
@@ -65,13 +67,13 @@ Lecture Dub은 두 상태를 따로 확인합니다.
 런타임을 설치합니다.
 
 ```powershell
-pip install -e ".[local-qwen]"
+.\.venv\Scripts\python.exe -m pip install -e ".[local-qwen]"
 ```
 
 또는 Supertonic까지 같이 설치하려면:
 
 ```powershell
-pip install -e ".[local]"
+.\.venv\Scripts\python.exe -m pip install -e ".[local]"
 ```
 
 예시 모델 폴더:
@@ -91,15 +93,15 @@ D:\AI\Models\Qwen3-TTS-12Hz-1.7B-CustomVoice\
 런타임을 설치합니다.
 
 ```powershell
-pip install -e ".[local-supertonic]"
+.\.venv\Scripts\python.exe -m pip install -e ".[local-supertonic]"
 ```
 
 Windows에서 NVIDIA GPU를 사용하려면 DirectML Runtime을 설치합니다. 이 환경에서는 CUDA/cuDNN 조합보다 DirectML 경로가 Supertonic 3 실제 합성까지 검증되었습니다. Supertonic이 `onnxruntime`를 의존하므로 두 패키지를 함께 둔 상태는 지원하지 않습니다.
 
 ```powershell
-pip install -e ".[local-supertonic]"
-pip uninstall onnxruntime
-pip install -e ".[local-supertonic-gpu]"
+.\.venv\Scripts\python.exe -m pip install -e ".[local-supertonic]"
+.\.venv\Scripts\python.exe -m pip uninstall onnxruntime
+.\.venv\Scripts\python.exe -m pip install -e ".[local-supertonic-gpu]"
 ```
 
 Lecture Dub은 `onnxruntime.get_available_providers()`에 `CUDAExecutionProvider`가 있으면 CUDA를 먼저 요청하고, Windows에서는 `DmlExecutionProvider`를 GPU fallback으로 사용합니다. GPU provider가 없으면 CPU fallback을 로그로 알립니다.
