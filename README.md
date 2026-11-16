@@ -2,11 +2,9 @@
 
 **영어 YouTube 강의를 한국어 더빙과 영어·한국어 자막으로 공부하는 로컬 플레이어**입니다. 영상을 다시 만들지 않고, 원본 영상에 한국어 음성을 맞춰 재생합니다.
 
-## 1. 설치 (Windows)
+## 1. 설치 및 실행 (Windows)
 
 필요한 것: **Python 3.11 이상**, 인터넷, **FFmpeg/FFprobe**, Chrome 또는 Edge(확장 프로그램 사용 시).
-
-PowerShell에서 아래 순서대로 실행하세요.
 
 **① FFmpeg 설치**
 
@@ -14,29 +12,34 @@ PowerShell에서 아래 순서대로 실행하세요.
 winget install --id Gyan.FFmpeg -e
 ```
 
-설치 후 **PowerShell을 모두 닫고 새로 열어** 다음 명령을 확인합니다.
+설치 후 **PowerShell을 새로 열어** `ffmpeg -version`, `ffprobe -version`으로 확인합니다.
 
-```powershell
-ffmpeg -version
-ffprobe -version
-```
-
-**② 프로그램 설치**
+**② Lecture Dub 실행**
 
 ```powershell
 git clone https://github.com/HyunKN/lecture-dub.git
 cd lecture-dub
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
-```
-
-**③ 실행**
-
-```powershell
 .\서버_실행.bat
 ```
 
-브라우저에서 **http://127.0.0.1:8000** 을 엽니다.
+처음 실행하면 **설치된 Python을 자동으로 찾아** `.venv`를 생성하고 필요한 패키지를 설치합니다. 다음부터는 같은 `.venv`를 재사용합니다. 브라우저에서 **http://127.0.0.1:8000** 을 엽니다.
+
+### venv는 왜 사용하나요?
+
+가상환경(`venv`)은 Lecture Dub의 Python 패키지를 **다른 프로젝트와 분리**합니다. 특히 로컬 TTS 모델은 패키지 버전 충돌이 생길 수 있어 권장합니다. **필수는 아니지만**, 실행 파일은 실수로 전역 환경에 패키지를 설치하지 않도록 기본적으로 `.venv`를 사용합니다.
+
+**Python 버전은 고정하지 않습니다.** 설치된 3.13 → 3.12 → 3.11 순서로 우선 확인하고, 없으면 3.14·3.15 또는 사용 가능한 `python`(3.11 이상)을 시도합니다. 로컬 모델 호환성은 버전별로 다를 수 있으므로 **3.11~3.13을 권장**합니다. 이미 만든 `.venv`가 있다면 그 버전을 유지하며, 자동으로 삭제하거나 교체하지 않습니다.
+
+다른 버전을 사용하려면 기존 `.venv`를 **백업하거나 이름을 바꾼 후**, 다음처럼 실행할 수 있습니다.
+
+```powershell
+$env:LECTURE_DUB_PYTHON_VERSION = "3.11"
+.\서버_실행.bat
+```
+
+`venv` 없이 직접 실행할 수도 있지만, 이 경우에는 사용자가 직접 패키지를 설치·관리해야 합니다.
+
+---
 
 ## 2. 사용 방법
 

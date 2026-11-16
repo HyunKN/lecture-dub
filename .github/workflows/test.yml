@@ -24,3 +24,23 @@ jobs:
       - run: pytest -q
       - run: node --check web/local-models.js
       - run: node --check web/subtitle-quality.js
+      - run: node --check web/app.js
+
+  windows-bootstrap:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Create venv automatically using the Windows launcher
+        shell: cmd
+        env:
+          LECTURE_DUB_PYTHON_VERSION: '3.13'
+        run: call 서버_실행.bat --setup-only
+      - name: Verify venv Python and package
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -c "import sys; assert sys.version_info[:2] == (3, 13)"
+          .\.venv\Scripts\python.exe -c "import lecture_dub"
+
