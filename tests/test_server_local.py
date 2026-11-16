@@ -9,6 +9,7 @@ def test_local_model_routes_are_registered_before_legacy_mount() -> None:
     routes = list(server_local.app.routes)
     paths = [getattr(route, "path", "") for route in routes]
 
+    assert "/api/system/ffmpeg" in paths
     assert "/api/models" in paths
     assert "/api/models/root" in paths
     assert "/api/models/pick-root" in paths
@@ -41,3 +42,18 @@ def test_model_payload_includes_acceleration_summary(monkeypatch) -> None:
     payload = server_local._model_payload()
     assert payload["acceleration"]["ready"] is True
     assert payload["acceleration"]["provider"] == "DmlExecutionProvider"
+
+
+def test_ffmpeg_status_endpoint_reports_missing_tools(monkeypatch) -> None:
+    monkeypatch.setattr(server_local, "missing_ffmpeg_tools", lambda: ["ffmpeg", "ffprobe"])
+    payload = asyncio.run(server_local.ffmpeg_status())
+    assert payload["ready"] is False
+    assert payload["missing"] == ["ffmpeg", "ffprobe"]
+    assert "winget" in payload["install_command"]
+
+
+def test_ffmpeg_status_endpoint_reports_ready(monkeypatch) -> None:
+    monkeypatch.setattr(server_local, "missing_ffmpeg_tools", lambda: [])
+    payload = asyncio.run(server_local.ffmpeg_status())
+    assert payload["ready"] is True
+    assert payload["missing"] == []
