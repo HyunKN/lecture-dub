@@ -448,6 +448,49 @@
   const SYNTH_JOB_STORAGE_KEY = "lecture-dub-active-synthesis-job";
   let monitoredSynthJobId = "";
   let lastSynthMessage = "";
+  let ffmpegReady = false;
+
+  // A visible preflight warning prevents an otherwise confusing 0% failure.
+  const ffmpegNotice = document.createElement("div");
+  ffmpegNotice.id = "ffmpeg-status";
+  ffmpegNotice.className = "local-model-error";
+  ffmpegNotice.hidden = true;
+  ffmpegNotice.innerHTML = `
+    <strong>음성 합성을 위해 FFmpeg 설치가 필요합니다.</strong>
+    <p id="ffmpeg-status-message" role="alert"></p>
+    <code id="ffmpeg-install-command" style="display:block;margin:8px 0;user-select:all"></code>
+    <button type="button" id="btn-recheck-ffmpeg">설치 후 다시 확인</button>
+  `;
+  btnSynth.before(ffmpegNotice);
+
+  function updateSynthesisButton() {
+    btnSynth.disabled = !ffmpegReady || !selectKoVtt.value || Boolean(monitoredSynthJobId);
+  }
+
+  async function checkFfmpegStatus() {
+    try {
+      const response = await fetch("/api/system/ffmpeg", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      ffmpegReady = Boolean(data.ready);
+      ffmpegNotice.hidden = ffmpegReady;
+      if (!ffmpegReady) {
+        document.getElementById("ffmpeg-status-message").textContent = data.message;
+        document.getElementById("ffmpeg-install-command").textContent = data.install_command || "";
+      }
+    } catch (error) {
+      ffmpegReady = false;
+      ffmpegNotice.hidden = false;
+      document.getElementById("ffmpeg-status-message").textContent =
+        `FFmpeg 상태를 확인할 수 없습니다: ${error.message}`;
+      document.getElementById("ffmpeg-install-command").textContent = "";
+    }
+    updateSynthesisButton();
+    return ffmpegReady;
+  }
+
+  document.getElementById("btn-recheck-ffmpeg").addEventListener("click", checkFfmpegStatus);
+  checkFfmpegStatus();
 
   async function loadKoVttOptions() {
     try {
@@ -472,7 +515,7 @@
       if (savedKoVtt && [...selectKoVtt.options].some(option => option.value === savedKoVtt)) {
         selectKoVtt.value = savedKoVtt;
       }
-      btnSynth.disabled = false;
+      updateSynthesisButton();
     } catch {
       btnSynth.disabled = true;
     }
@@ -530,7 +573,7 @@
       }
     } finally {
       monitoredSynthJobId = "";
-      btnSynth.disabled = false;
+      updateSynthesisButton();
     }
   }
 
@@ -538,6 +581,8 @@
     const vtt = selectKoVtt.value;
     if (!vtt) return;
 
+    btnSynth.disabled = true;
+    if (!(await checkFfmpegStatus())) return;
     btnSynth.disabled = true;
     synthProgressWrap.hidden = false;
     synthBanner.hidden = true;
@@ -565,7 +610,7 @@
     } catch (err) {
       appendLog("log-synth", `합성 시작 실패: ${err.message}`, "error");
       setPill("badge-synth", "실패", "error");
-      btnSynth.disabled = false;
+      updateSynthesisButton();
     }
   });
 
