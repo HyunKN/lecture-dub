@@ -12,7 +12,7 @@ YouTube의 실제 시청 페이지에서 로컬 한국어 더빙 WAV와 영어·
 2. Chrome에서는 `chrome://extensions`, Edge에서는 `edge://extensions`를 엽니다.
 3. **개발자 모드**를 켭니다.
 4. **압축해제된 확장 프로그램을 로드**를 누릅니다.
-5. 이 저장소의 `extension/` 폴더를 선택합니다.
+5. 이 저장소(lecture-dub)의 `extension/` 폴더를 선택합니다.
 
 스토어 배포 전까지는 위 방식으로 설치합니다.
 
