@@ -166,7 +166,7 @@ lecture-dub serve
 ## Web UI 사용 순서
 
 ```text
-1. lecture-dub serve
+1. Windows: `.\서버_실행.bat` 실행 (이미 가상환경을 활성화했다면 `lecture-dub serve`도 가능)
 2. http://127.0.0.1:8000 열기
 3. Step 3 → TTS 엔진과 로컬 모델
 4. 모델 상위 폴더 선택
